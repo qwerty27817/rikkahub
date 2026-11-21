@@ -7,11 +7,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -41,6 +43,8 @@ fun WearMcpSettingsPage(
     val store: SettingsStore = koinInject()
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
+    val deletedMessage = stringResource(R.string.wear_svc_mcp_deleted)
+    val addServerLabel = stringResource(R.string.wear_svc_mcp_add)
 
     var editingId by remember { mutableStateOf<Uuid?>(null) }
     var showAdd by remember { mutableStateOf(false) }
@@ -68,32 +72,36 @@ fun WearMcpSettingsPage(
                     }
                 }
                 editingId = null
-                toaster.show("MCP server deleted", ToastType.Success)
+                toaster.show(deletedMessage, ToastType.Success)
             },
         )
         return
     }
 
     val titles = numberedTitles(servers.map { it.commonOptions.name })
-    WearScreen(title = "MCP", onBack = onBack) {
+    WearScreen(title = stringResource(R.string.wear_svc_mcp_title), onBack = onBack) {
         if (servers.isEmpty()) {
-            textItem("No MCP servers configured. Add one to connect tools.")
+            textItem(stringResource(R.string.wear_svc_mcp_empty))
         }
         servers.forEachIndexed { index, server ->
             navItem(
                 title = titles[index],
                 subtitle = buildServerSubtitle(server),
                 icon = WearIcons.Mcp,
-                trailingText = if (server.commonOptions.enable) "On" else "Off",
+                trailingText = if (server.commonOptions.enable) {
+                    stringResource(R.string.wear_svc_on)
+                } else {
+                    stringResource(R.string.wear_svc_off)
+                },
                 onClick = { editingId = server.id },
             )
         }
-        buttonItem(label = "Add MCP server", icon = WearIcons.Add, tonal = true) {
+        buttonItem(label = addServerLabel, icon = WearIcons.Add, tonal = true) {
             showAdd = true
         }
-        infoItem("Servers", "${servers.size}")
+        infoItem(stringResource(R.string.wear_svc_servers), "${servers.size}")
         textItem(
-            text = "OAuth and tool approval are managed on the phone app.",
+            text = stringResource(R.string.wear_svc_mcp_phone_hint),
             maxLines = 3,
             small = true,
             muted = true,
@@ -103,7 +111,7 @@ fun WearMcpSettingsPage(
     if (showAdd) {
         WearOptionDialog(
             visible = true,
-            title = "Add MCP server",
+            title = addServerLabel,
             options = listOf("Streamable HTTP", "SSE"),
             onSelect = { index ->
                 val config = when (index) {
@@ -139,49 +147,57 @@ private fun McpServerDetail(
     val name = server.commonOptions.name
     val headers = server.commonOptions.headers
     val url = server.urlOrNull()
+    val notSetLabel = stringResource(R.string.wear_svc_not_set)
+    val invalidHeaders = stringResource(R.string.wear_svc_mcp_invalid_headers)
+    val defaultTitle = stringResource(R.string.wear_svc_mcp_server)
+    val thisServerLabel = stringResource(R.string.wear_svc_this_server)
+    val deleteMessage = stringResource(
+        R.string.wear_svc_mcp_delete_message,
+        name.ifBlank { thisServerLabel },
+    )
 
-    WearScreen(title = name.ifBlank { "MCP server" }, onBack = onBack) {
-        infoItem("Transport", server.transportLabel())
+    WearScreen(title = name.ifBlank { defaultTitle }, onBack = onBack) {
+        infoItem(stringResource(R.string.wear_svc_transport), server.transportLabel())
         toggleItem(
-            title = "Enabled",
+            title = stringResource(R.string.wear_svc_enable),
             checked = server.commonOptions.enable,
-            subtitle = "Disabled servers are not connected",
+            subtitle = stringResource(R.string.wear_svc_mcp_disabled_hint),
             onCheckedChange = { enabled -> onUpdate(server.withEnabled(enabled)) },
         )
         navItem(
-            title = "Name",
-            subtitle = name.ifBlank { "Not set" },
+            title = stringResource(R.string.wear_svc_name),
+            subtitle = name.ifBlank { notSetLabel },
             icon = WearIcons.Settings,
             onClick = { editField = McpField.NAME },
         )
         navItem(
-            title = "Server URL",
-            subtitle = url.ifBlank { "Not set" },
+            title = stringResource(R.string.wear_svc_mcp_server_url),
+            subtitle = url.ifBlank { notSetLabel },
             icon = WearIcons.Web,
             onClick = { editField = McpField.URL },
         )
         navItem(
-            title = "Headers",
+            title = stringResource(R.string.wear_svc_mcp_headers),
             subtitle = when (headers.size) {
-                0 -> "None"
-                1 -> "1 header"
-                else -> "${headers.size} headers"
+                0 -> stringResource(R.string.wear_svc_none)
+                1 -> stringResource(R.string.wear_svc_header_count_one, headers.size)
+                else -> stringResource(R.string.wear_svc_header_count_many, headers.size)
             },
             icon = WearIcons.Settings,
             onClick = { editField = McpField.HEADERS },
         )
         textItem(
-            text = "Headers use a JSON object, e.g. {\"Authorization\": \"Bearer ...\"}",
+            text = stringResource(R.string.wear_svc_mcp_headers_help),
             maxLines = 3,
             small = true,
             muted = true,
         )
         if (headers.isNotEmpty()) {
             headers.take(5).forEach { (key, value) ->
-                infoItem("Header: $key", maskSecret(value))
+                infoItem(stringResource(R.string.wear_svc_mcp_header_item, key), maskSecret(value))
             }
         }
-        buttonItem(label = "Delete server", icon = WearIcons.Delete, tonal = true) {
+        buttonItem(label = stringResource(R.string.wear_svc_mcp_delete), icon = WearIcons.Delete, tonal = true) {
             confirmDelete = true
         }
     }
@@ -191,9 +207,9 @@ private fun McpServerDetail(
         WearInputDialog(
             visible = true,
             title = when (field) {
-                McpField.NAME -> "Server name"
-                McpField.URL -> "Server URL"
-                McpField.HEADERS -> "Headers JSON"
+                McpField.NAME -> stringResource(R.string.wear_svc_mcp_server_name)
+                McpField.URL -> stringResource(R.string.wear_svc_mcp_server_url)
+                McpField.HEADERS -> stringResource(R.string.wear_svc_mcp_headers_json)
             },
             initialValue = when (field) {
                 McpField.NAME -> name
@@ -202,7 +218,7 @@ private fun McpServerDetail(
             },
             singleLine = field != McpField.HEADERS,
             placeholder = when (field) {
-                McpField.NAME -> "My MCP server"
+                McpField.NAME -> stringResource(R.string.wear_svc_mcp_name_placeholder)
                 McpField.URL -> "https://example.com/mcp"
                 McpField.HEADERS -> "{\"Authorization\":\"Bearer ...\"}"
             },
@@ -214,7 +230,7 @@ private fun McpServerDetail(
                     McpField.HEADERS -> {
                         val parsed = parseHeaders(value)
                         if (parsed == null) {
-                            toaster.show("Invalid headers JSON", ToastType.Error)
+                            toaster.show(invalidHeaders, ToastType.Error)
                         } else {
                             onUpdate(server.withHeaders(parsed))
                         }
@@ -227,9 +243,9 @@ private fun McpServerDetail(
 
     WearConfirmDialog(
         visible = confirmDelete,
-        title = "Delete MCP server?",
-        message = name.ifBlank { "This server" } + " will be removed.",
-        confirmLabel = "Delete",
+        title = stringResource(R.string.wear_svc_mcp_delete_title),
+        message = deleteMessage,
+        confirmLabel = stringResource(R.string.wear_common_delete),
         danger = true,
         onConfirm = {
             confirmDelete = false
@@ -239,24 +255,34 @@ private fun McpServerDetail(
     )
 }
 
+@Composable
 private fun numberedTitles(names: List<String>): List<String> {
+    val unnamed = stringResource(R.string.wear_svc_unnamed_server)
     val seen = mutableMapOf<String, Int>()
     return names.map { name ->
-        val label = name.ifBlank { "Unnamed server" }
+        val label = name.ifBlank { unnamed }
         val count = (seen[label] ?: 0) + 1
         seen[label] = count
         if (count == 1) label else "$label #$count"
     }
 }
 
+@Composable
 private fun buildServerSubtitle(server: McpServerConfig): String {
-    val state = if (server.commonOptions.enable) "Enabled" else "Disabled"
+    val state = if (server.commonOptions.enable) {
+        stringResource(R.string.wear_svc_enabled)
+    } else {
+        stringResource(R.string.wear_svc_disabled)
+    }
     val url = server.urlOrNull()
-    return if (url.isBlank()) "$state · no URL" else "$state · $url"
+    val noUrlLabel = stringResource(R.string.wear_svc_no_url)
+    val address = url.ifBlank { noUrlLabel }
+    return stringResource(R.string.wear_svc_mcp_subtitle, state, address)
 }
 
+@Composable
 private fun maskSecret(value: String): String = when {
-    value.isBlank() -> "Not set"
+    value.isBlank() -> stringResource(R.string.wear_svc_not_set)
     value.length <= 6 -> "••••"
     else -> "••••${value.takeLast(4)}"
 }

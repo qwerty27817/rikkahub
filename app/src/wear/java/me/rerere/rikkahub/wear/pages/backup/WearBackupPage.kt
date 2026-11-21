@@ -19,6 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.createBitmap
@@ -41,6 +42,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import me.rerere.asr.ASRProviderSetting
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.data.datastore.NetworkSetting
@@ -92,11 +94,19 @@ private enum class BackupField {
     S3_SECRET_KEY,
 }
 
-private enum class ImportType(val label: String) {
-    LOCAL("Local RikkaHub backup"),
-    CHATBOX("Chatbox backup"),
-    CHERRY("Cherry Studio providers"),
-    DEEPSEEK("DeepSeek data"),
+private enum class ImportType {
+    LOCAL,
+    CHATBOX,
+    CHERRY,
+    DEEPSEEK,
+}
+
+@Composable
+private fun importTypeLabel(type: ImportType): String = when (type) {
+    ImportType.LOCAL -> stringResource(R.string.wear_bak_import_type_local)
+    ImportType.CHATBOX -> stringResource(R.string.wear_bak_import_type_chatbox)
+    ImportType.CHERRY -> stringResource(R.string.wear_bak_import_type_cherry)
+    ImportType.DEEPSEEK -> stringResource(R.string.wear_bak_import_type_deepseek)
 }
 
 /** QR 传输用的小体积设置快照：只带手表端能编辑的字段，导入时合并而不是整份覆盖。 */
@@ -162,15 +172,88 @@ fun WearBackupPage(
     var qrError by remember { mutableStateOf<String?>(null) }
     var editField by remember { mutableStateOf<BackupField?>(null) }
 
+    // WearScreen 的 content 是普通 DSL builder（非 @Composable），字符串要先在外部取好；
+    // 需要运行时拼接的文案先取模板，再用 format 填入动态值。
+    val title = stringResource(R.string.wear_bak_title)
+    val localSectionTitle = stringResource(R.string.wear_bak_local_section)
+    val databaseItemLabel = stringResource(R.string.wear_bak_item_database)
+    val filesItemLabel = stringResource(R.string.wear_bak_item_files)
+    val exportFileLabel = stringResource(R.string.wear_bak_export_file)
+    val restoreFromFileLabel = stringResource(R.string.wear_bak_restore_from_file)
+    val qrSectionTitle = stringResource(R.string.wear_bak_qr_section)
+    val qrDescription = stringResource(R.string.wear_bak_qr_desc)
+    val showQrLabel = stringResource(R.string.wear_bak_show_qr)
+    val qrContentDescription = stringResource(R.string.wear_bak_qr_content_desc)
+    val importQrLabel = stringResource(R.string.wear_bak_import_qr)
+    val webDavSectionTitle = stringResource(R.string.wear_bak_webdav_section)
+    val lastBackupLabel = stringResource(R.string.wear_bak_last_backup)
+    val webDavUrlLabel = stringResource(R.string.wear_bak_webdav_url)
+    val webDavUsernameLabel = stringResource(R.string.wear_bak_webdav_username)
+    val webDavPasswordLabel = stringResource(R.string.wear_bak_webdav_password)
+    val webDavPathLabel = stringResource(R.string.wear_bak_webdav_path)
+    val testWebDavLabel = stringResource(R.string.wear_bak_test_webdav)
+    val backupWebDavLabel = stringResource(R.string.wear_bak_backup_webdav)
+    val s3SectionTitle = stringResource(R.string.wear_bak_s3_section)
+    val s3EndpointLabel = stringResource(R.string.wear_bak_s3_endpoint)
+    val s3BucketLabel = stringResource(R.string.wear_bak_s3_bucket)
+    val s3RegionLabel = stringResource(R.string.wear_bak_s3_region)
+    val s3RegionAutoLabel = stringResource(R.string.wear_bak_s3_region_auto)
+    val s3AccessKeyLabel = stringResource(R.string.wear_bak_s3_access_key)
+    val s3SecretKeyLabel = stringResource(R.string.wear_bak_s3_secret_key)
+    val s3PathStyleLabel = stringResource(R.string.wear_bak_s3_path_style)
+    val testS3Label = stringResource(R.string.wear_bak_test_s3)
+    val backupS3Label = stringResource(R.string.wear_bak_backup_s3)
+    val otherAppsSectionTitle = stringResource(R.string.wear_bak_other_apps_section)
+    val importChatboxLabel = stringResource(R.string.wear_bak_import_chatbox)
+    val importCherryLabel = stringResource(R.string.wear_bak_import_cherry)
+    val importDeepSeekLabel = stringResource(R.string.wear_bak_import_deepseek)
+    val phoneHint = stringResource(R.string.wear_bak_phone_hint)
+    val pasteCodeTitle = stringResource(R.string.wear_bak_paste_code)
+    val restartTitle = stringResource(R.string.wear_bak_restart_title)
+    val restartMessage = stringResource(R.string.wear_bak_restart_message)
+    val okLabel = stringResource(R.string.wear_common_ok)
+    val laterLabel = stringResource(R.string.wear_bak_later)
+    val closeLabel = stringResource(R.string.wear_common_close)
+    val deepSeekDoneTitle = stringResource(R.string.wear_bak_deepseek_done)
+    val neverLabel = stringResource(R.string.wear_bak_never)
+    val notSetLabel = stringResource(R.string.wear_bak_not_set)
+    val exportingBackup = stringResource(R.string.wear_bak_exporting)
+    val backupExported = stringResource(R.string.wear_bak_export_success)
+    val backupExportFailed = stringResource(R.string.wear_bak_export_failed)
+    val importingBackup = stringResource(R.string.wear_bak_importing)
+    val importFinished = stringResource(R.string.wear_bak_import_finished)
+    val importFailed = stringResource(R.string.wear_bak_import_failed)
+    val buildingQr = stringResource(R.string.wear_bak_building_qr)
+    val qrEncodeFailed = stringResource(R.string.wear_bak_qr_encode_failed)
+    val importingSettings = stringResource(R.string.wear_bak_importing_settings)
+    val missingSettingsMessage = stringResource(R.string.wear_bak_missing_settings)
+    val unsupportedCodeMessage = stringResource(R.string.wear_bak_unsupported_code)
+    val settingsImported = stringResource(R.string.wear_bak_settings_imported)
+    val invalidCode = stringResource(R.string.wear_bak_invalid_code)
+    val actionFinishedFormat = stringResource(R.string.wear_bak_action_finished)
+    val actionFailedFormat = stringResource(R.string.wear_bak_action_failed)
+    val webDavConnectionAction = stringResource(R.string.wear_bak_action_webdav_connection)
+    val webDavBackupAction = stringResource(R.string.wear_bak_action_webdav_backup)
+    val s3ConnectionAction = stringResource(R.string.wear_bak_action_s3_connection)
+    val s3BackupAction = stringResource(R.string.wear_bak_action_s3_backup)
+    val fieldSavedFormat = stringResource(R.string.wear_bak_field_saved)
+    val deepSeekImportedFormat = stringResource(R.string.wear_bak_deepseek_imported)
+    val deepSeekSkippedExistingFormat = stringResource(R.string.wear_bak_deepseek_skipped_existing)
+    val deepSeekSkippedEmptyFormat = stringResource(R.string.wear_bak_deepseek_skipped_empty)
+    val deepSeekMissingAttachmentsFormat = stringResource(R.string.wear_bak_deepseek_missing_attachments)
+    val deepSeekPeriod = stringResource(R.string.wear_bak_deepseek_period)
+    val qrNoteFull = stringResource(R.string.wear_bak_qr_note_full)
+    val qrNoteWatch = stringResource(R.string.wear_bak_qr_note_watch)
+
     val createDocumentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
         if (uri != null) {
             scope.launch {
-                busy = "Exporting backup…"
+                busy = exportingBackup
                 runCatching { exportToUri(vm, context, uri) }
-                    .onSuccess { toaster.show("Backup exported", ToastType.Success) }
-                    .onFailure { toaster.show(it.message ?: "Backup export failed", ToastType.Error) }
+                    .onSuccess { toaster.show(backupExported, ToastType.Success) }
+                    .onFailure { toaster.show(it.message ?: backupExportFailed, ToastType.Error) }
                 busy = null
             }
         }
@@ -183,7 +266,7 @@ fun WearBackupPage(
         pendingImportType = null
         if (uri != null) {
             scope.launch {
-                busy = "Importing backup…"
+                busy = importingBackup
                 runCatching {
                     when (type) {
                         ImportType.LOCAL -> {
@@ -217,26 +300,26 @@ fun WearBackupPage(
                         ImportType.DEEPSEEK -> {
                             val result = vm.restoreFromDeepSeek(uri)
                             deepSeekMessage = buildString {
-                                append("Imported ${result.importedConversations} conversations")
+                                append(deepSeekImportedFormat.format(result.importedConversations))
                                 if (result.skippedExistingConversations > 0) {
-                                    append(", skipped ${result.skippedExistingConversations} existing")
+                                    append(deepSeekSkippedExistingFormat.format(result.skippedExistingConversations))
                                 }
                                 if (result.skippedEmptyConversations > 0) {
-                                    append(", ${result.skippedEmptyConversations} empty")
+                                    append(deepSeekSkippedEmptyFormat.format(result.skippedEmptyConversations))
                                 }
                                 if (result.missingAttachments > 0) {
-                                    append(", ${result.missingAttachments} missing attachments")
+                                    append(deepSeekMissingAttachmentsFormat.format(result.missingAttachments))
                                 }
-                                append(".")
+                                append(deepSeekPeriod)
                             }
                         }
                     }
                 }.onSuccess {
                     if (type != ImportType.LOCAL && type != ImportType.DEEPSEEK) {
-                        toaster.show("Import finished", ToastType.Success)
+                        toaster.show(importFinished, ToastType.Success)
                     }
                 }.onFailure {
-                    toaster.show(it.message ?: "Import failed", ToastType.Error)
+                    toaster.show(it.message ?: importFailed, ToastType.Error)
                 }
                 busy = null
             }
@@ -250,15 +333,15 @@ fun WearBackupPage(
 
     fun generateQr() {
         scope.launch {
-            busy = "Building QR code…"
+            busy = buildingQr
             qrBitmap = null
             qrError = null
-            runCatching { withContext(Dispatchers.Default) { buildBackupQr(settings) } }
+            runCatching { withContext(Dispatchers.Default) { buildBackupQr(settings, qrNoteFull, qrNoteWatch) } }
                 .onSuccess { (bitmap, note) ->
                     qrBitmap = bitmap
                     qrNote = note
                 }
-                .onFailure { qrError = it.message ?: "Could not encode backup QR" }
+                .onFailure { qrError = it.message ?: qrEncodeFailed }
             busy = null
         }
     }
@@ -267,8 +350,8 @@ fun WearBackupPage(
         scope.launch {
             busy = action
             runCatching { block() }
-                .onSuccess { toaster.show("$action finished", ToastType.Success) }
-                .onFailure { toaster.show(it.message ?: "$action failed", ToastType.Error) }
+                .onSuccess { toaster.show(actionFinishedFormat.format(action), ToastType.Success) }
+                .onFailure { toaster.show(it.message ?: actionFailedFormat.format(action), ToastType.Error) }
             busy = null
         }
     }
@@ -279,37 +362,42 @@ fun WearBackupPage(
 
     val webDavConfig = settings.webDavConfig
     val s3Config = settings.s3Config
-    val lastBackup = formatTime(settings.backupReminderConfig.lastBackupTime)
+    val lastBackup = formatTime(settings.backupReminderConfig.lastBackupTime, neverLabel)
     val qrImage = qrBitmap
     val currentQrError = qrError
     val currentQrNote = qrNote
     val currentBusy = busy
     val isIdle = currentBusy == null
-    val importOptions = ImportType.entries.map { it.label }
+    val importOptions = listOf(
+        importTypeLabel(ImportType.LOCAL),
+        importTypeLabel(ImportType.CHATBOX),
+        importTypeLabel(ImportType.CHERRY),
+        importTypeLabel(ImportType.DEEPSEEK),
+    )
 
-    WearScreen(title = "Backup", onBack = onBack) {
-        section("Local backup")
+    WearScreen(title = title, onBack = onBack) {
+        section(localSectionTitle)
         toggleItem(
-            title = "Chat records (database)",
+            title = databaseItemLabel,
             checked = WebDavConfig.BackupItem.DATABASE in localItems,
             enabled = isIdle,
             onCheckedChange = { checked -> updateLocalItem(vm, WebDavConfig.BackupItem.DATABASE, checked) },
         )
         toggleItem(
-            title = "Files and attachments",
+            title = filesItemLabel,
             checked = WebDavConfig.BackupItem.FILES in localItems,
             enabled = isIdle,
             onCheckedChange = { checked -> updateLocalItem(vm, WebDavConfig.BackupItem.FILES, checked) },
         )
         buttonItem(
-            label = "Export backup file",
+            label = exportFileLabel,
             icon = WearIcons.Download,
             enabled = isIdle,
         ) {
             createDocumentLauncher.launch(exportFileName)
         }
         buttonItem(
-            label = "Restore from file",
+            label = restoreFromFileLabel,
             icon = WearIcons.Upload,
             tonal = true,
             enabled = isIdle,
@@ -320,15 +408,15 @@ fun WearBackupPage(
             textItem(text = currentBusy, maxLines = 2, small = true, muted = true)
         }
 
-        section("QR transfer")
+        section(qrSectionTitle)
         textItem(
-            text = "QR carries settings only (no chats or files). Paste the code below to import on another watch.",
+            text = qrDescription,
             maxLines = 4,
             small = true,
             muted = true,
         )
         buttonItem(
-            label = "Show settings QR",
+            label = showQrLabel,
             icon = WearIcons.Qr,
             enabled = isIdle,
         ) {
@@ -338,7 +426,7 @@ fun WearBackupPage(
             item(key = "backup_qr") {
                 Image(
                     bitmap = qrImage.asImageBitmap(),
-                    contentDescription = "Backup QR code",
+                    contentDescription = qrContentDescription,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp, vertical = 4.dp)
@@ -353,7 +441,7 @@ fun WearBackupPage(
             textItem(text = currentQrError, maxLines = 3, small = true, muted = true)
         }
         buttonItem(
-            label = "Import settings from QR text",
+            label = importQrLabel,
             icon = WearIcons.Qr,
             tonal = true,
             enabled = isIdle,
@@ -361,80 +449,84 @@ fun WearBackupPage(
             showQrImport = true
         }
 
-        section("WebDAV")
-        infoItem("Last backup", lastBackup)
+        section(webDavSectionTitle)
+        infoItem(lastBackupLabel, lastBackup)
         navItem(
-            title = "WebDAV URL",
-            subtitle = webDavConfig.url.ifBlank { "Not set" },
+            title = webDavUrlLabel,
+            subtitle = webDavConfig.url.ifBlank { notSetLabel },
             icon = WearIcons.Web,
             onClick = { editField = BackupField.WEBDAV_URL },
         )
         navItem(
-            title = "WebDAV username",
-            subtitle = webDavConfig.username.ifBlank { "Not set" },
+            title = webDavUsernameLabel,
+            subtitle = webDavConfig.username.ifBlank { notSetLabel },
             icon = WearIcons.Settings,
             onClick = { editField = BackupField.WEBDAV_USERNAME },
         )
         navItem(
-            title = "WebDAV password",
-            subtitle = if (webDavConfig.password.isBlank()) "Not set" else "••••••",
+            title = webDavPasswordLabel,
+            subtitle = if (webDavConfig.password.isBlank()) notSetLabel else "••••••",
             icon = WearIcons.Settings,
             onClick = { editField = BackupField.WEBDAV_PASSWORD },
         )
         navItem(
-            title = "WebDAV folder",
+            title = webDavPathLabel,
             subtitle = webDavConfig.path,
             icon = WearIcons.Folder,
             onClick = { editField = BackupField.WEBDAV_PATH },
         )
         buttonItem(
-            label = "Test WebDAV",
+            label = testWebDavLabel,
             tonal = true,
             enabled = isIdle,
         ) {
-            runRemote("WebDAV connection") { vm.testWebDav() }
+            runRemote(webDavConnectionAction) { vm.testWebDav() }
         }
         buttonItem(
-            label = "Back up to WebDAV",
+            label = backupWebDavLabel,
             icon = WearIcons.Upload,
             enabled = isIdle,
         ) {
-            runRemote("WebDAV backup") { vm.backup() }
+            runRemote(webDavBackupAction) { vm.backup() }
         }
 
-        section("S3")
+        section(s3SectionTitle)
         navItem(
-            title = "S3 endpoint",
-            subtitle = s3Config.endpoint.ifBlank { "Not set" },
+            title = s3EndpointLabel,
+            subtitle = s3Config.endpoint.ifBlank { notSetLabel },
             icon = WearIcons.Server,
             onClick = { editField = BackupField.S3_ENDPOINT },
         )
         navItem(
-            title = "S3 bucket",
-            subtitle = s3Config.bucket.ifBlank { "Not set" },
+            title = s3BucketLabel,
+            subtitle = s3Config.bucket.ifBlank { notSetLabel },
             icon = WearIcons.Folder,
             onClick = { editField = BackupField.S3_BUCKET },
         )
         navItem(
-            title = "S3 region",
-            subtitle = s3Config.region.ifBlank { "auto" },
+            title = s3RegionLabel,
+            subtitle = s3Config.region.ifBlank { s3RegionAutoLabel },
             icon = WearIcons.Web,
             onClick = { editField = BackupField.S3_REGION },
         )
         navItem(
-            title = "S3 access key",
-            subtitle = if (s3Config.accessKeyId.isBlank()) "Not set" else maskSecret(s3Config.accessKeyId),
+            title = s3AccessKeyLabel,
+            subtitle = if (s3Config.accessKeyId.isBlank()) {
+                notSetLabel
+            } else {
+                maskSecret(s3Config.accessKeyId, notSetLabel)
+            },
             icon = WearIcons.Settings,
             onClick = { editField = BackupField.S3_ACCESS_KEY },
         )
         navItem(
-            title = "S3 secret key",
-            subtitle = if (s3Config.secretAccessKey.isBlank()) "Not set" else "••••••",
+            title = s3SecretKeyLabel,
+            subtitle = if (s3Config.secretAccessKey.isBlank()) notSetLabel else "••••••",
             icon = WearIcons.Settings,
             onClick = { editField = BackupField.S3_SECRET_KEY },
         )
         toggleItem(
-            title = "S3 path-style URLs",
+            title = s3PathStyleLabel,
             checked = s3Config.pathStyle,
             enabled = isIdle,
             onCheckedChange = { checked ->
@@ -442,44 +534,44 @@ fun WearBackupPage(
             },
         )
         buttonItem(
-            label = "Test S3",
+            label = testS3Label,
             tonal = true,
             enabled = isIdle,
         ) {
-            runRemote("S3 connection") { vm.testS3() }
+            runRemote(s3ConnectionAction) { vm.testS3() }
         }
         buttonItem(
-            label = "Back up to S3",
+            label = backupS3Label,
             icon = WearIcons.Upload,
             enabled = isIdle,
         ) {
-            runRemote("S3 backup") { vm.backupToS3() }
+            runRemote(s3BackupAction) { vm.backupToS3() }
         }
 
-        section("Other apps")
+        section(otherAppsSectionTitle)
         buttonItem(
-            label = "Import Chatbox backup",
+            label = importChatboxLabel,
             icon = WearIcons.File,
             enabled = isIdle,
         ) {
             launchImport(ImportType.CHATBOX)
         }
         buttonItem(
-            label = "Import Cherry Studio providers",
+            label = importCherryLabel,
             icon = WearIcons.File,
             enabled = isIdle,
         ) {
             launchImport(ImportType.CHERRY)
         }
         buttonItem(
-            label = "Import DeepSeek data",
+            label = importDeepSeekLabel,
             icon = WearIcons.File,
             enabled = isIdle,
         ) {
             launchImport(ImportType.DEEPSEEK)
         }
         textItem(
-            text = "Remote restore and full database restore run on the phone app.",
+            text = phoneHint,
             maxLines = 3,
             small = true,
             muted = true,
@@ -489,7 +581,7 @@ fun WearBackupPage(
     if (showImportType) {
         WearOptionDialog(
             visible = true,
-            title = "Restore from file",
+            title = restoreFromFileLabel,
             options = importOptions,
             onSelect = { index ->
                 val type = ImportType.entries.getOrNull(index)
@@ -505,35 +597,35 @@ fun WearBackupPage(
     if (showQrImport) {
         WearInputDialog(
             visible = true,
-            title = "Paste backup code",
+            title = pasteCodeTitle,
             initialValue = "",
             placeholder = QR_PREFIX,
             singleLine = false,
             onConfirm = { text ->
                 showQrImport = false
                 scope.launch {
-                    busy = "Importing settings…"
+                    busy = importingSettings
                     runCatching {
                         val payload = withContext(Dispatchers.Default) { decodeBackupPayload(text) }
                         when (payload.mode) {
                             QR_MODE_FULL -> {
                                 val imported = payload.settings
-                                    ?: throw IllegalArgumentException("Backup is missing settings")
+                                    ?: throw IllegalArgumentException(missingSettingsMessage)
                                 vm.updateSettings { imported }
                             }
 
                             QR_MODE_WATCH -> {
                                 val imported = payload.watch
-                                    ?: throw IllegalArgumentException("Backup is missing settings")
+                                    ?: throw IllegalArgumentException(missingSettingsMessage)
                                 vm.updateSettings { latest -> latest.applyWatchPayload(imported) }
                             }
 
-                            else -> throw IllegalArgumentException("Unsupported backup code")
+                            else -> throw IllegalArgumentException(unsupportedCodeMessage)
                         }
                     }.onSuccess {
-                        toaster.show("Settings imported", ToastType.Success)
+                        toaster.show(settingsImported, ToastType.Success)
                     }.onFailure {
-                        toaster.show(it.message ?: "Invalid backup code", ToastType.Error)
+                        toaster.show(it.message ?: invalidCode, ToastType.Error)
                     }
                     busy = null
                 }
@@ -544,9 +636,10 @@ fun WearBackupPage(
 
     val field = editField
     if (field != null) {
+        val fieldTitleText = fieldTitle(field)
         WearInputDialog(
             visible = true,
-            title = fieldTitle(field),
+            title = fieldTitleText,
             initialValue = fieldValue(settings, field),
             singleLine = true,
             keyboardType = if (field == BackupField.WEBDAV_PASSWORD || field == BackupField.S3_SECRET_KEY) {
@@ -557,7 +650,7 @@ fun WearBackupPage(
             onConfirm = { value ->
                 editField = null
                 vm.updateSettings { latest -> latest.withBackupField(field, value.trim()) }
-                toaster.show("${fieldTitle(field)} saved", ToastType.Success)
+                toaster.show(fieldSavedFormat.format(fieldTitleText), ToastType.Success)
             },
             onDismiss = { editField = null },
         )
@@ -565,10 +658,10 @@ fun WearBackupPage(
 
     WearConfirmDialog(
         visible = showRestartHint,
-        title = "Restart required",
-        message = "The restore is staged. Close RikkaHub completely and open it again to apply the backup.",
-        confirmLabel = "OK",
-        dismissLabel = "Later",
+        title = restartTitle,
+        message = restartMessage,
+        confirmLabel = okLabel,
+        dismissLabel = laterLabel,
         onConfirm = { showRestartHint = false },
         onDismiss = { showRestartHint = false },
     )
@@ -577,10 +670,10 @@ fun WearBackupPage(
     if (currentDeepSeekMessage != null) {
         WearConfirmDialog(
             visible = true,
-            title = "DeepSeek import finished",
+            title = deepSeekDoneTitle,
             message = currentDeepSeekMessage,
-            confirmLabel = "OK",
-            dismissLabel = "Close",
+            confirmLabel = okLabel,
+            dismissLabel = closeLabel,
             onConfirm = { deepSeekMessage = null },
             onDismiss = { deepSeekMessage = null },
         )
@@ -613,30 +706,31 @@ private fun updateLocalItem(vm: BackupVM, item: WebDavConfig.BackupItem, enabled
     vm.updateLocalBackupItems(next.distinct().sortedBy { it.ordinal })
 }
 
-private fun formatTime(epochMillis: Long): String = if (epochMillis <= 0L) {
-    "Never"
+private fun formatTime(epochMillis: Long, neverLabel: String): String = if (epochMillis <= 0L) {
+    neverLabel
 } else {
     Instant.ofEpochMilli(epochMillis)
         .atZone(ZoneId.systemDefault())
         .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
 }
 
-private fun maskSecret(value: String): String = when {
-    value.isBlank() -> "Not set"
+private fun maskSecret(value: String, notSetLabel: String): String = when {
+    value.isBlank() -> notSetLabel
     value.length <= 6 -> "••••"
     else -> "••••${value.takeLast(4)}"
 }
 
+@Composable
 private fun fieldTitle(field: BackupField): String = when (field) {
-    BackupField.WEBDAV_URL -> "WebDAV URL"
-    BackupField.WEBDAV_USERNAME -> "WebDAV username"
-    BackupField.WEBDAV_PASSWORD -> "WebDAV password"
-    BackupField.WEBDAV_PATH -> "WebDAV folder"
-    BackupField.S3_ENDPOINT -> "S3 endpoint"
-    BackupField.S3_BUCKET -> "S3 bucket"
-    BackupField.S3_REGION -> "S3 region"
-    BackupField.S3_ACCESS_KEY -> "S3 access key"
-    BackupField.S3_SECRET_KEY -> "S3 secret key"
+    BackupField.WEBDAV_URL -> stringResource(R.string.wear_bak_webdav_url)
+    BackupField.WEBDAV_USERNAME -> stringResource(R.string.wear_bak_webdav_username)
+    BackupField.WEBDAV_PASSWORD -> stringResource(R.string.wear_bak_webdav_password)
+    BackupField.WEBDAV_PATH -> stringResource(R.string.wear_bak_webdav_path)
+    BackupField.S3_ENDPOINT -> stringResource(R.string.wear_bak_s3_endpoint)
+    BackupField.S3_BUCKET -> stringResource(R.string.wear_bak_s3_bucket)
+    BackupField.S3_REGION -> stringResource(R.string.wear_bak_s3_region)
+    BackupField.S3_ACCESS_KEY -> stringResource(R.string.wear_bak_s3_access_key)
+    BackupField.S3_SECRET_KEY -> stringResource(R.string.wear_bak_s3_secret_key)
 }
 
 private fun fieldValue(settings: Settings, field: BackupField): String = when (field) {
@@ -731,8 +825,12 @@ private fun decodeBackupPayload(text: String): BackupQrPayload {
     return backupJson.decodeFromString(BackupQrPayload.serializer(), jsonText)
 }
 
-/** 先尝试完整设置，超出 QR 容量时退化为手表可编辑设置的子集。 */
-private fun buildBackupQr(settings: Settings): Pair<Bitmap, String> {
+/** 先尝试完整设置，超出 QR 容量时退化为手表可编辑设置的子集。文案由调用方提供，便于国际化。 */
+private fun buildBackupQr(
+    settings: Settings,
+    fullNote: String,
+    watchNote: String,
+): Pair<Bitmap, String> {
     val candidates = listOf(
         QR_MODE_FULL to BackupQrPayload(mode = QR_MODE_FULL, settings = settings),
         QR_MODE_WATCH to BackupQrPayload(mode = QR_MODE_WATCH, watch = settings.toWatchPayload()),
@@ -741,11 +839,7 @@ private fun buildBackupQr(settings: Settings): Pair<Bitmap, String> {
     for ((mode, payload) in candidates) {
         val encoded = encodePayload(payload)
         try {
-            val note = if (mode == QR_MODE_FULL) {
-                "QR contains the full settings snapshot."
-            } else {
-                "Full settings exceed QR capacity; this QR contains watch settings only."
-            }
+            val note = if (mode == QR_MODE_FULL) fullNote else watchNote
             return renderQr(encoded) to note
         } catch (e: Exception) {
             failure = e

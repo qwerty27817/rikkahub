@@ -5,7 +5,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceVM
 import me.rerere.rikkahub.wear.WearIcons
@@ -30,27 +32,43 @@ fun WearWorkspacesPage(
     var showCreate by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<WorkspaceEntity?>(null) }
 
-    WearScreen(title = "Workspace", onBack = onBack) {
-        textItem(
-            "Workspaces run a Linux rootfs with PRoot. The image is downloaded on demand, " +
-                "so everything else keeps working offline."
-        )
+    // WearScreen 的 content 是普通 DSL builder（非 @Composable），字符串要先在外部取好。
+    val title = stringResource(R.string.wear_ws_title)
+    val intro = stringResource(R.string.wear_ws_intro)
+    val emptyLabel = stringResource(R.string.wear_ws_empty)
+    val workspacesSection = stringResource(R.string.wear_ws_section_workspaces)
+    val sshKind = stringResource(R.string.wear_ws_kind_ssh)
+    val localKind = stringResource(R.string.wear_ws_kind_local)
+    val createWorkspaceLabel = stringResource(R.string.wear_ws_create)
+    val deleteWorkspaceLabel = stringResource(R.string.wear_ws_delete)
+    val deleteMessage = stringResource(R.string.wear_ws_delete_message)
+    val deleteConfirmLabel = stringResource(R.string.wear_ws_delete_confirm)
+    val namePlaceholder = stringResource(R.string.wear_ws_create_placeholder)
+    val shellStatusLabels = mapOf(
+        WorkspaceShellStatus.READY.name to stringResource(R.string.wear_ws_status_rootfs_ready),
+        WorkspaceShellStatus.INSTALLING.name to stringResource(R.string.wear_ws_status_installing),
+        WorkspaceShellStatus.BROKEN.name to stringResource(R.string.wear_ws_status_broken),
+    )
+    val noRootfsLabel = stringResource(R.string.wear_ws_status_no_rootfs)
+
+    WearScreen(title = title, onBack = onBack) {
+        textItem(intro)
         if (workspaces.isEmpty()) {
-            textItem("No workspace yet.")
+            textItem(emptyLabel)
         }
-        section("Workspaces")
+        section(workspacesSection)
         workspaces.forEach { workspace ->
+            val statusLabel = shellStatusLabels[workspace.shellStatus] ?: noRootfsLabel
             navItem(
                 title = workspace.name,
-                subtitle = shellStatusLabel(workspace.shellStatus) +
-                    if (workspace.isSsh()) " · SSH" else " · local",
+                subtitle = "$statusLabel · ${if (workspace.isSsh()) sshKind else localKind}",
                 icon = WearIcons.Folder,
                 onClick = { runCatching { Uuid.parse(workspace.id) }.getOrNull()?.let(onOpen) },
             )
         }
-        buttonItem(label = "New workspace", icon = WearIcons.Add) { showCreate = true }
+        buttonItem(label = createWorkspaceLabel, icon = WearIcons.Add) { showCreate = true }
         if (workspaces.isNotEmpty()) {
-            buttonItem(label = "Delete workspace", icon = WearIcons.Delete, tonal = true) {
+            buttonItem(label = deleteWorkspaceLabel, icon = WearIcons.Delete, tonal = true) {
                 pendingDelete = workspaces.lastOrNull()
             }
         }
@@ -59,10 +77,10 @@ fun WearWorkspacesPage(
     if (showCreate) {
         WearInputDialog(
             visible = true,
-            title = "New workspace",
+            title = createWorkspaceLabel,
             initialValue = "",
             singleLine = true,
-            placeholder = "linux",
+            placeholder = namePlaceholder,
             onConfirm = { name ->
                 showCreate = false
                 if (name.isNotBlank()) vm.create(name)
@@ -74,9 +92,9 @@ fun WearWorkspacesPage(
     pendingDelete?.let { workspace ->
         WearConfirmDialog(
             visible = true,
-            title = "Delete ${workspace.name}?",
-            message = "The rootfs and files inside this workspace will be removed.",
-            confirmLabel = "Delete",
+            title = stringResource(R.string.wear_ws_delete_title, workspace.name),
+            message = deleteMessage,
+            confirmLabel = deleteConfirmLabel,
             danger = true,
             onConfirm = {
                 pendingDelete = null
@@ -85,11 +103,4 @@ fun WearWorkspacesPage(
             onDismiss = { pendingDelete = null },
         )
     }
-}
-
-private fun shellStatusLabel(status: String): String = when (status) {
-    WorkspaceShellStatus.READY.name -> "rootfs ready"
-    WorkspaceShellStatus.INSTALLING.name -> "installing"
-    WorkspaceShellStatus.BROKEN.name -> "broken"
-    else -> "no rootfs"
 }

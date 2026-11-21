@@ -11,11 +11,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material3.CheckboxButton
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.ui.pages.extensions.PromptVM
@@ -53,16 +55,42 @@ fun WearPromptsPage(
     var deleteLorebook by remember { mutableStateOf<Lorebook?>(null) }
     var addLorebook by remember { mutableStateOf(false) }
 
-    WearScreen(title = "Prompt injections", onBack = onBack) {
+    // WearScreen 的 content 是普通 DSL builder（非 @Composable），字符串要先在外部取好。
+    val title = stringResource(R.string.wear_ext_prompts_title)
+    val promptsDesc = stringResource(R.string.wear_ext_prompts_desc)
+    val modeInjectionsSection = stringResource(R.string.wear_ext_mode_injections_section)
+    val modeInjectionsEmpty = stringResource(R.string.wear_ext_mode_injections_empty)
+    val modeInjectionFallback = stringResource(R.string.wear_ext_mode_injection_unnamed)
+    val lorebooksSection = stringResource(R.string.wear_ext_lorebooks_section)
+    val lorebooksEmpty = stringResource(R.string.wear_ext_lorebooks_empty)
+    val lorebookFallback = stringResource(R.string.wear_ext_lorebook_unnamed)
+    val addModeInjectionLabel = stringResource(R.string.wear_ext_add_mode_injection)
+    val addLorebookLabel = stringResource(R.string.wear_ext_add_lorebook)
+    val manage = stringResource(R.string.wear_ext_manage)
+    val rename = stringResource(R.string.wear_ext_rename)
+    val editContent = stringResource(R.string.wear_ext_edit_content)
+    val editDescription = stringResource(R.string.wear_ext_edit_description)
+    val delete = stringResource(R.string.wear_ext_delete)
+    val renameModeInjection = stringResource(R.string.wear_ext_rename_mode_injection)
+    val renameLorebookTitle = stringResource(R.string.wear_ext_rename_lorebook)
+    val newModeInjection = stringResource(R.string.wear_ext_new_mode_injection)
+    val newLorebook = stringResource(R.string.wear_ext_new_lorebook)
+    val deleteModeInjectionTitle = stringResource(R.string.wear_ext_delete_mode_injection_title)
+    val deleteLorebookTitle = stringResource(R.string.wear_ext_delete_lorebook_title)
+    val nameLabel = stringResource(R.string.wear_ext_name)
+    val injectedTextLabel = stringResource(R.string.wear_ext_injection_content)
+    val descriptionLabel = stringResource(R.string.wear_ext_description)
+
+    WearScreen(title = title, onBack = onBack) {
         textItem(
-            "Mode injections apply when the matching mode is on. Lorebooks inject entries when their keywords match the chat.",
+            promptsDesc,
             small = true,
             muted = true,
         )
 
-        section("Mode injections")
+        section(modeInjectionsSection)
         if (settings.modeInjections.isEmpty()) {
-            textItem("No mode injections yet.")
+            textItem(modeInjectionsEmpty)
         } else {
             settings.modeInjections.forEach { injection ->
                 item(key = "mode:${injection.id}") {
@@ -84,7 +112,7 @@ fun WearPromptsPage(
                             modifier = Modifier.weight(1f),
                             label = {
                                 Text(
-                                    text = injection.name.ifBlank { "Mode injection" },
+                                    text = injection.name.ifBlank { modeInjectionFallback },
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -99,19 +127,19 @@ fun WearPromptsPage(
                             },
                         )
                         IconButton(onClick = { modeMenu = injection }) {
-                            Icon(imageVector = WearIcons.More, contentDescription = "Manage")
+                            Icon(imageVector = WearIcons.More, contentDescription = manage)
                         }
                     }
                 }
             }
         }
-        buttonItem(label = "Add mode injection", icon = WearIcons.Add, tonal = true) {
+        buttonItem(label = addModeInjectionLabel, icon = WearIcons.Add, tonal = true) {
             addMode = true
         }
 
-        section("Lorebooks")
+        section(lorebooksSection)
         if (settings.lorebooks.isEmpty()) {
-            textItem("No lorebooks yet. Lorebook entries are edited on the phone for now.")
+            textItem(lorebooksEmpty)
         } else {
             settings.lorebooks.forEach { lorebook ->
                 item(key = "lorebook:${lorebook.id}") {
@@ -133,7 +161,7 @@ fun WearPromptsPage(
                             modifier = Modifier.weight(1f),
                             label = {
                                 Text(
-                                    text = lorebook.name.ifBlank { "Lorebook" },
+                                    text = lorebook.name.ifBlank { lorebookFallback },
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -148,13 +176,13 @@ fun WearPromptsPage(
                             },
                         )
                         IconButton(onClick = { lorebookMenu = lorebook }) {
-                            Icon(imageVector = WearIcons.More, contentDescription = "Manage")
+                            Icon(imageVector = WearIcons.More, contentDescription = manage)
                         }
                     }
                 }
             }
         }
-        buttonItem(label = "Add lorebook", icon = WearIcons.Add, tonal = true) {
+        buttonItem(label = addLorebookLabel, icon = WearIcons.Add, tonal = true) {
             addLorebook = true
         }
     }
@@ -162,8 +190,8 @@ fun WearPromptsPage(
     modeMenu?.let { target ->
         WearOptionDialog(
             visible = true,
-            title = target.name.ifBlank { "Mode injection" },
-            options = listOf("Rename", "Edit content", "Delete"),
+            title = target.name.ifBlank { modeInjectionFallback },
+            options = listOf(rename, editContent, delete),
             onSelect = { index ->
                 modeMenu = null
                 when (index) {
@@ -179,9 +207,9 @@ fun WearPromptsPage(
     renameMode?.let { target ->
         WearInputDialog(
             visible = true,
-            title = "Rename mode injection",
+            title = renameModeInjection,
             initialValue = target.name,
-            label = "Name",
+            label = nameLabel,
             singleLine = true,
             onConfirm = { value ->
                 renameMode = null
@@ -203,9 +231,9 @@ fun WearPromptsPage(
     contentMode?.let { target ->
         WearInputDialog(
             visible = true,
-            title = "Edit content",
+            title = editContent,
             initialValue = target.content,
-            label = "Injected text",
+            label = injectedTextLabel,
             singleLine = false,
             onConfirm = { value ->
                 contentMode = null
@@ -224,9 +252,9 @@ fun WearPromptsPage(
     deleteMode?.let { target ->
         WearConfirmDialog(
             visible = true,
-            title = "Delete mode injection?",
-            message = target.name.ifBlank { "Mode injection" },
-            confirmLabel = "Delete",
+            title = deleteModeInjectionTitle,
+            message = target.name.ifBlank { modeInjectionFallback },
+            confirmLabel = delete,
             danger = true,
             onConfirm = {
                 deleteMode = null
@@ -241,9 +269,9 @@ fun WearPromptsPage(
     if (addMode) {
         WearInputDialog(
             visible = true,
-            title = "New mode injection",
+            title = newModeInjection,
             initialValue = "",
-            label = "Name",
+            label = nameLabel,
             singleLine = true,
             onConfirm = { value ->
                 addMode = false
@@ -261,8 +289,8 @@ fun WearPromptsPage(
     lorebookMenu?.let { target ->
         WearOptionDialog(
             visible = true,
-            title = target.name.ifBlank { "Lorebook" },
-            options = listOf("Rename", "Edit description", "Delete"),
+            title = target.name.ifBlank { lorebookFallback },
+            options = listOf(rename, editDescription, delete),
             onSelect = { index ->
                 lorebookMenu = null
                 when (index) {
@@ -278,9 +306,9 @@ fun WearPromptsPage(
     renameLorebook?.let { target ->
         WearInputDialog(
             visible = true,
-            title = "Rename lorebook",
+            title = renameLorebookTitle,
             initialValue = target.name,
-            label = "Name",
+            label = nameLabel,
             singleLine = true,
             onConfirm = { value ->
                 renameLorebook = null
@@ -298,9 +326,9 @@ fun WearPromptsPage(
     descLorebook?.let { target ->
         WearInputDialog(
             visible = true,
-            title = "Edit description",
+            title = editDescription,
             initialValue = target.description,
-            label = "Description",
+            label = descriptionLabel,
             singleLine = false,
             onConfirm = { value ->
                 descLorebook = null
@@ -315,9 +343,9 @@ fun WearPromptsPage(
     deleteLorebook?.let { target ->
         WearConfirmDialog(
             visible = true,
-            title = "Delete lorebook?",
-            message = target.name.ifBlank { "Lorebook" },
-            confirmLabel = "Delete",
+            title = deleteLorebookTitle,
+            message = target.name.ifBlank { lorebookFallback },
+            confirmLabel = delete,
             danger = true,
             onConfirm = {
                 deleteLorebook = null
@@ -330,9 +358,9 @@ fun WearPromptsPage(
     if (addLorebook) {
         WearInputDialog(
             visible = true,
-            title = "New lorebook",
+            title = newLorebook,
             initialValue = "",
-            label = "Name",
+            label = nameLabel,
             singleLine = true,
             onConfirm = { value ->
                 addLorebook = false

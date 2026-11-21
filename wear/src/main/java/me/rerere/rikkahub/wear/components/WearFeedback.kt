@@ -10,12 +10,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.CircularProgressIndicator
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
+import me.rerere.rikkahub.wear.R
 
 @Composable
 fun WearLoading(
@@ -94,10 +96,10 @@ fun WearError(
     onRetry: (() -> Unit)? = null,
 ) {
     WearEmpty(
-        title = "Something went wrong",
+        title = stringResource(R.string.wear_something_wrong),
         subtitle = message,
         modifier = modifier,
-        actionLabel = if (onRetry != null) "Retry" else null,
+        actionLabel = if (onRetry != null) stringResource(R.string.wear_retry) else null,
         onAction = onRetry,
     )
 }

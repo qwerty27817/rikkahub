@@ -6,7 +6,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -49,9 +51,13 @@ fun WearAssistantDetailPage(
     var editName by remember { mutableStateOf(false) }
     var showModelPicker by remember { mutableStateOf(false) }
 
+    // WearScreen 的 content 是普通 DSL builder（非 @Composable），字符串要先在外部取好。
+    val assistantFallback = stringResource(R.string.wear_asst_assistant)
+    val missingAssistant = stringResource(R.string.wear_asst_assistant_missing)
+
     if (assistant == null) {
-        WearScreen(title = "Assistant", onBack = onBack) {
-            textItem("This assistant no longer exists.")
+        WearScreen(title = assistantFallback, onBack = onBack) {
+            textItem(missingAssistant)
         }
         return
     }
@@ -63,23 +69,56 @@ fun WearAssistantDetailPage(
             .flatMap { provider -> provider.models.map { model -> provider.name to model } }
     }
     val globalModel = settings.findModelById(settings.chatModelId)
+
+    val notConfiguredLabel = stringResource(R.string.wear_asst_not_configured)
+    val memoryDisabledLabel = stringResource(R.string.wear_asst_disabled)
+    val memoryGlobalLabel = stringResource(R.string.wear_asst_memory_enabled_global)
+    val memoryAssistantLabel = stringResource(R.string.wear_asst_memory_enabled_assistant)
+    val useForNewChatsLabel = stringResource(R.string.wear_asst_use_for_new_chats)
+    val useForNewChatsDesc = stringResource(R.string.wear_asst_use_for_new_chats_desc)
+    val configurationLabel = stringResource(R.string.wear_asst_configuration)
+    val nameLabel = stringResource(R.string.wear_asst_name)
+    val unnamedAssistantLabel = stringResource(R.string.wear_asst_unnamed_assistant)
+    val chatModelLabel = stringResource(R.string.wear_asst_chat_model)
+    val systemPromptLabel = stringResource(R.string.wear_asst_system_prompt)
+    val emptyLabel = stringResource(R.string.wear_asst_empty)
+    val capabilitiesLabel = stringResource(R.string.wear_asst_capabilities)
+    val memoryLabel = stringResource(R.string.wear_asst_memory)
+    val mcpServersLabel = stringResource(R.string.wear_asst_mcp_servers)
+    val mcpAssignedLabel = stringResource(R.string.wear_asst_assigned_count, assistant.mcpServers.size)
+    val localToolsLabel = stringResource(R.string.wear_asst_local_tools)
+    val localToolsEnabledLabel =
+        stringResource(R.string.wear_asst_enabled_count, assistant.localTools.size)
+    val promptInjectionsLabel = stringResource(R.string.wear_asst_prompt_injections)
+    val injectionsSummaryLabel = stringResource(
+        R.string.wear_asst_injections_summary,
+        assistant.modeInjectionIds.size,
+        assistant.lorebookIds.size,
+    )
+    val systemPromptPreviewLabel = stringResource(R.string.wear_asst_system_prompt_preview)
+    val nameSavedMessage = stringResource(R.string.wear_asst_name_saved)
+    val usingGlobalDefaultMessage = stringResource(R.string.wear_asst_using_global_default)
+
     val modelLabel = when {
         assistant.chatModelId == null && globalModel != null ->
-            "${globalModel.displayName.ifBlank { globalModel.modelId }} (global)"
+            stringResource(
+                R.string.wear_asst_model_global,
+                globalModel.displayName.ifBlank { globalModel.modelId },
+            )
 
         activeModel != null -> activeModel.displayName.ifBlank { activeModel.modelId }
-        else -> "Not configured"
+        else -> notConfiguredLabel
     }
-    val memoryLabel = when {
-        !assistant.enableMemory -> "Disabled"
-        assistant.useGlobalMemory -> "Enabled · global memory"
-        else -> "Enabled · per-assistant memory"
+    val memoryStateLabel = when {
+        !assistant.enableMemory -> memoryDisabledLabel
+        assistant.useGlobalMemory -> memoryGlobalLabel
+        else -> memoryAssistantLabel
     }
 
-    WearScreen(title = assistant.name.ifBlank { "Assistant" }, onBack = onBack) {
+    WearScreen(title = assistant.name.ifBlank { assistantFallback }, onBack = onBack) {
         toggleItem(
-            title = "Use for new chats",
-            subtitle = "Selects this assistant as the current one",
+            title = useForNewChatsLabel,
+            subtitle = useForNewChatsDesc,
             checked = assistant.id == settings.assistantId,
             enabled = assistant.id != settings.assistantId,
             onCheckedChange = { active ->
@@ -87,58 +126,58 @@ fun WearAssistantDetailPage(
             },
         )
 
-        section("Configuration")
+        section(configurationLabel)
         navItem(
-            title = "Name",
-            subtitle = assistant.name.ifBlank { "Unnamed assistant" },
+            title = nameLabel,
+            subtitle = assistant.name.ifBlank { unnamedAssistantLabel },
             icon = WearIcons.Settings,
             onClick = { editName = true },
         )
         navItem(
-            title = "Chat model",
+            title = chatModelLabel,
             subtitle = modelLabel,
             icon = WearIcons.Cpu,
             onClick = { showModelPicker = true },
         )
         navItem(
-            title = "System prompt",
+            title = systemPromptLabel,
             subtitle = assistant.systemPrompt
                 .replace('\n', ' ')
                 .trim()
-                .ifBlank { "Empty" }
+                .ifBlank { emptyLabel }
                 .take(60),
             icon = WearIcons.Messages,
             onClick = { onNavigate(WearDestination.AssistantPrompt(id)) },
         )
 
-        section("Capabilities")
+        section(capabilitiesLabel)
         navItem(
-            title = "Memory",
-            subtitle = memoryLabel,
+            title = memoryLabel,
+            subtitle = memoryStateLabel,
             icon = WearIcons.Brain,
             onClick = { onNavigate(WearDestination.AssistantMemory(id)) },
         )
         navItem(
-            title = "MCP servers",
-            subtitle = "${assistant.mcpServers.size} assigned",
+            title = mcpServersLabel,
+            subtitle = mcpAssignedLabel,
             icon = WearIcons.Mcp,
             onClick = { onNavigate(WearDestination.AssistantMcp(id)) },
         )
         navItem(
-            title = "Local tools",
-            subtitle = "${assistant.localTools.size} enabled",
+            title = localToolsLabel,
+            subtitle = localToolsEnabledLabel,
             icon = WearIcons.Robot,
             onClick = { onNavigate(WearDestination.AssistantTools(id)) },
         )
         navItem(
-            title = "Prompt injections",
-            subtitle = "${assistant.modeInjectionIds.size} modes · ${assistant.lorebookIds.size} lorebooks",
+            title = promptInjectionsLabel,
+            subtitle = injectionsSummaryLabel,
             icon = WearIcons.Ai,
             onClick = { onNavigate(WearDestination.AssistantInjections(id)) },
         )
 
         if (assistant.systemPrompt.isNotBlank()) {
-            section("System prompt preview")
+            section(systemPromptPreviewLabel)
             textItem(
                 text = assistant.systemPrompt,
                 maxLines = 6,
@@ -151,16 +190,17 @@ fun WearAssistantDetailPage(
     if (editName) {
         WearInputDialog(
             visible = true,
-            title = "Assistant name",
+            title = stringResource(R.string.wear_asst_assistant_name),
             initialValue = assistant.name,
-            label = "Name",
-            placeholder = "Assistant",
+            label = nameLabel,
+            placeholder = assistantFallback,
+            confirmLabel = stringResource(R.string.wear_common_ok),
             singleLine = true,
             onConfirm = { value ->
                 editName = false
                 scope.launch {
                     vm.update(assistant.copy(name = value.trim()))
-                    toaster.show("Name saved", ToastType.Success)
+                    toaster.show(nameSavedMessage, ToastType.Success)
                 }
             },
             onDismiss = { editName = false },
@@ -173,10 +213,19 @@ fun WearAssistantDetailPage(
         } else {
             allModels.indexOfFirst { (_, model) -> model.id == assistant.chatModelId } + 1
         }
+        val useGlobalDefaultLabel = stringResource(R.string.wear_asst_use_global_default)
+        // 回调不是 @Composable，先把每个模型的提示文本取好
+        val modelSetMessages = mutableListOf<String>()
+        for ((_, model) in allModels) {
+            modelSetMessages += stringResource(
+                R.string.wear_asst_model_set_to,
+                model.displayName.ifBlank { model.modelId },
+            )
+        }
         WearOptionDialog(
             visible = true,
-            title = "Chat model",
-            options = listOf("Use global default") + allModels.map { (provider, model) ->
+            title = chatModelLabel,
+            options = listOf(useGlobalDefaultLabel) + allModels.map { (provider, model) ->
                 "${model.displayName.ifBlank { model.modelId }} · $provider"
             },
             selectedIndex = selectedIndex.coerceAtLeast(0),
@@ -185,14 +234,17 @@ fun WearAssistantDetailPage(
                 if (index == 0) {
                     scope.launch {
                         vm.update(assistant.copy(chatModelId = null))
-                        toaster.show("Using global default model", ToastType.Success)
+                        toaster.show(usingGlobalDefaultMessage, ToastType.Success)
                     }
                 } else {
                     val model = allModels.getOrNull(index - 1)?.second
                     if (model != null) {
                         scope.launch {
                             vm.update(assistant.copy(chatModelId = model.id))
-                            toaster.show("Model set to ${model.displayName.ifBlank { model.modelId }}", ToastType.Success)
+                            toaster.show(
+                                modelSetMessages.getOrElse(index - 1) { "" },
+                                ToastType.Success,
+                            )
                         }
                     }
                 }

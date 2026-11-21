@@ -12,9 +12,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.service.WebServerService
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -53,6 +55,14 @@ fun WearWebServerPage(
     var editPort by remember { mutableStateOf(false) }
     var editPassword by remember { mutableStateOf(false) }
 
+    val startFailedMessage = stringResource(R.string.wear_svc_web_start_failed)
+    val stopFailedMessage = stringResource(R.string.wear_svc_web_stop_failed)
+    val permissionDeniedMessage = stringResource(R.string.wear_svc_web_permission_denied)
+    val notSetLabel = stringResource(R.string.wear_svc_not_set)
+    val enabledLabel = stringResource(R.string.wear_svc_enabled)
+    val disabledLabel = stringResource(R.string.wear_svc_disabled)
+    val portError = stringResource(R.string.wear_svc_web_port_error)
+
     fun startServer() {
         val intent = Intent(context, WebServerService::class.java).apply {
             action = WebServerService.ACTION_START
@@ -60,7 +70,7 @@ fun WearWebServerPage(
             putExtra(WebServerService.EXTRA_LOCALHOST_ONLY, settings.webServerLocalhostOnly)
         }
         runCatching { context.startForegroundService(intent) }
-            .onFailure { toaster.show(it.message ?: "Could not start web server", ToastType.Error) }
+            .onFailure { toaster.show(it.message ?: startFailedMessage, ToastType.Error) }
         scope.launch { store.update { it.copy(webServerEnabled = true) } }
     }
 
@@ -69,7 +79,7 @@ fun WearWebServerPage(
             action = WebServerService.ACTION_STOP
         }
         runCatching { context.startService(intent) }
-            .onFailure { toaster.show(it.message ?: "Could not stop web server", ToastType.Error) }
+            .onFailure { toaster.show(it.message ?: stopFailedMessage, ToastType.Error) }
         scope.launch { store.update { it.copy(webServerEnabled = false) } }
     }
 
@@ -89,32 +99,47 @@ fun WearWebServerPage(
         if (result.values.all { it }) {
             startServer()
         } else {
-            toaster.show("Permission denied; web server was not started", ToastType.Error)
+            toaster.show(permissionDeniedMessage, ToastType.Error)
         }
     }
 
-    WearScreen(title = "Web server", onBack = onBack) {
-        infoItem("Status", when {
-            state.isLoading -> "Working…"
-            state.isRunning -> "Running"
-            else -> "Stopped"
-        })
+    WearScreen(title = stringResource(R.string.wear_svc_web_title), onBack = onBack) {
+        infoItem(
+            stringResource(R.string.wear_svc_web_status),
+            when {
+                state.isLoading -> stringResource(R.string.wear_svc_web_working)
+                state.isRunning -> stringResource(R.string.wear_svc_web_running)
+                else -> stringResource(R.string.wear_svc_web_stopped)
+            },
+        )
         if (state.isRunning) {
-            infoItem("Local address", "http://localhost:${state.port}")
+            infoItem(stringResource(R.string.wear_svc_web_local_address), "http://localhost:${state.port}")
             if (!state.localhostOnly) {
-                infoItem("LAN address", "http://${state.address ?: "localhost"}:${state.port}")
+                infoItem(
+                    stringResource(R.string.wear_svc_web_lan_address),
+                    "http://${state.address ?: "localhost"}:${state.port}",
+                )
                 val hostname = state.hostname
                 if (hostname != null) {
-                    infoItem("mDNS address", "http://$hostname:${state.port}")
+                    infoItem(stringResource(R.string.wear_svc_web_mdns_address), "http://$hostname:${state.port}")
                 }
             }
         }
         val error = state.error
         if (error != null) {
-            textItem(text = "Error: $error", maxLines = 4, small = true, muted = true)
+            textItem(
+                text = stringResource(R.string.wear_svc_web_error, error),
+                maxLines = 4,
+                small = true,
+                muted = true,
+            )
         }
         buttonItem(
-            label = if (state.isRunning) "Stop server" else "Start server",
+            label = if (state.isRunning) {
+                stringResource(R.string.wear_svc_web_stop)
+            } else {
+                stringResource(R.string.wear_svc_web_start)
+            },
             icon = if (state.isRunning) WearIcons.Stop else WearIcons.Play,
             tonal = true,
             enabled = !state.isLoading,
@@ -126,48 +151,53 @@ fun WearWebServerPage(
             }
         }
         infoItem(
-            "Start on launch",
-            if (settings.webServerEnabled) "Enabled" else "Disabled",
+            stringResource(R.string.wear_svc_web_start_on_launch),
+            if (settings.webServerEnabled) enabledLabel else disabledLabel,
         )
 
-        section("Configuration")
+        section(stringResource(R.string.wear_svc_web_configuration))
         if (state.isRunning) {
-            infoItem("Port", state.port.toString())
-            textItem("Stop the server to change port or localhost mode.", maxLines = 3, small = true, muted = true)
+            infoItem(stringResource(R.string.wear_svc_web_port), state.port.toString())
+            textItem(
+                text = stringResource(R.string.wear_svc_web_stop_to_edit),
+                maxLines = 3,
+                small = true,
+                muted = true,
+            )
         } else {
             navItem(
-                title = "Port",
-                subtitle = "${settings.webServerPort} (1024 - 65535)",
+                title = stringResource(R.string.wear_svc_web_port),
+                subtitle = stringResource(R.string.wear_svc_web_port_subtitle, settings.webServerPort),
                 icon = WearIcons.Settings,
                 onClick = { editPort = true },
             )
         }
         toggleItem(
-            title = "Localhost only",
+            title = stringResource(R.string.wear_svc_web_localhost_only),
             checked = settings.webServerLocalhostOnly,
-            subtitle = "Only serve on 127.0.0.1",
+            subtitle = stringResource(R.string.wear_svc_web_localhost_only_desc),
             enabled = !state.isRunning,
             onCheckedChange = { checked ->
                 scope.launch { store.update { it.copy(webServerLocalhostOnly = checked) } }
             },
         )
         navItem(
-            title = "Access password",
-            subtitle = if (settings.webServerAccessPassword.isBlank()) "Not set" else "••••••",
+            title = stringResource(R.string.wear_svc_web_access_password),
+            subtitle = if (settings.webServerAccessPassword.isBlank()) notSetLabel else "••••••",
             icon = WearIcons.Settings,
             onClick = { editPassword = true },
         )
         toggleItem(
-            title = "JWT auth",
+            title = stringResource(R.string.wear_svc_web_jwt),
             checked = settings.webServerJwtEnabled,
-            subtitle = "Sign requests with a JWT",
+            subtitle = stringResource(R.string.wear_svc_web_jwt_desc),
             enabled = settings.webServerJwtEnabled || settings.webServerAccessPassword.isNotBlank(),
             onCheckedChange = { checked ->
                 scope.launch { store.update { it.copy(webServerJwtEnabled = checked) } }
             },
         )
         textItem(
-            text = "JWT requires an access password.",
+            text = stringResource(R.string.wear_svc_web_jwt_hint),
             maxLines = 2,
             small = true,
             muted = true,
@@ -177,7 +207,7 @@ fun WearWebServerPage(
     if (editPort) {
         WearInputDialog(
             visible = true,
-            title = "Web server port",
+            title = stringResource(R.string.wear_svc_web_port_title),
             initialValue = settings.webServerPort.toString(),
             label = "1024 - 65535",
             keyboardType = KeyboardType.Number,
@@ -187,7 +217,7 @@ fun WearWebServerPage(
                 if (port != null && port in 1024..65535) {
                     scope.launch { store.update { it.copy(webServerPort = port) } }
                 } else {
-                    toaster.show("Port must be between 1024 and 65535", ToastType.Error)
+                    toaster.show(portError, ToastType.Error)
                 }
             },
             onDismiss = { editPort = false },
@@ -197,9 +227,9 @@ fun WearWebServerPage(
     if (editPassword) {
         WearInputDialog(
             visible = true,
-            title = "Access password",
+            title = stringResource(R.string.wear_svc_web_access_password),
             initialValue = settings.webServerAccessPassword,
-            label = "Leave empty to disable",
+            label = stringResource(R.string.wear_svc_web_password_label),
             singleLine = true,
             keyboardType = KeyboardType.Password,
             onConfirm = { value ->

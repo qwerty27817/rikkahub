@@ -2,7 +2,9 @@ package me.rerere.rikkahub.wear.pages.assistant
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.local.LocalToolOption
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantDetailVM
@@ -15,56 +17,56 @@ import org.koin.core.parameter.parametersOf
 
 private data class LocalToolInfo(
     val option: LocalToolOption,
-    val title: String,
-    val description: String,
+    val titleRes: Int,
+    val descriptionRes: Int,
 )
 
 // 与手机版 AssistantLocalToolPage 里的清单保持一致；手表上不做权限申请，只改配置
 private val localToolInfos = listOf(
     LocalToolInfo(
         option = LocalToolOption.JavascriptEngine,
-        title = "JavaScript engine",
-        description = "Run short scripts inside the chat",
+        titleRes = R.string.wear_asst_tool_javascript_title,
+        descriptionRes = R.string.wear_asst_tool_javascript_desc,
     ),
     LocalToolInfo(
         option = LocalToolOption.TimeInfo,
-        title = "Time info",
-        description = "Current date, time and time zone",
+        titleRes = R.string.wear_asst_tool_time_info_title,
+        descriptionRes = R.string.wear_asst_tool_time_info_desc,
     ),
     LocalToolInfo(
         option = LocalToolOption.Clipboard,
-        title = "Clipboard",
-        description = "Read and write the clipboard",
+        titleRes = R.string.wear_asst_tool_clipboard_title,
+        descriptionRes = R.string.wear_asst_tool_clipboard_desc,
     ),
     LocalToolInfo(
         option = LocalToolOption.Tts,
-        title = "Text to speech",
-        description = "Speak replies out loud",
+        titleRes = R.string.wear_asst_tool_tts_title,
+        descriptionRes = R.string.wear_asst_tool_tts_desc,
     ),
     LocalToolInfo(
         option = LocalToolOption.AskUser,
-        title = "Ask user",
-        description = "Ask a follow-up question before replying",
+        titleRes = R.string.wear_asst_tool_ask_user_title,
+        descriptionRes = R.string.wear_asst_tool_ask_user_desc,
     ),
     LocalToolInfo(
         option = LocalToolOption.ScreenTime,
-        title = "Screen time",
-        description = "App usage on the phone",
+        titleRes = R.string.wear_asst_tool_screen_time_title,
+        descriptionRes = R.string.wear_asst_tool_screen_time_desc,
     ),
     LocalToolInfo(
         option = LocalToolOption.Calendar,
-        title = "Calendar",
-        description = "Read and create calendar events (phone)",
+        titleRes = R.string.wear_asst_tool_calendar_title,
+        descriptionRes = R.string.wear_asst_tool_calendar_desc,
     ),
     LocalToolInfo(
         option = LocalToolOption.ChartDisplay,
-        title = "Chart display",
-        description = "Render charts in replies",
+        titleRes = R.string.wear_asst_tool_chart_title,
+        descriptionRes = R.string.wear_asst_tool_chart_desc,
     ),
     LocalToolInfo(
         option = LocalToolOption.PhoneUse,
-        title = "Phone use",
-        description = "Control the phone (needs accessibility on the phone)",
+        titleRes = R.string.wear_asst_tool_phone_use_title,
+        descriptionRes = R.string.wear_asst_tool_phone_use_desc,
     ),
 )
 
@@ -79,25 +81,38 @@ fun WearAssistantToolsPage(
     val vm: AssistantDetailVM = koinViewModel(parameters = { parametersOf(assistantId.toString()) })
     val assistant = settings.assistants.find { it.id == assistantId }
 
+    // WearScreen 的 content 是普通 DSL builder（非 @Composable），字符串要先在外部取好。
+    val localToolsTitle = stringResource(R.string.wear_asst_local_tools)
+    val missingAssistant = stringResource(R.string.wear_asst_assistant_missing)
+
     if (assistant == null) {
-        WearScreen(title = "Local tools", onBack = onBack) {
-            textItem("This assistant no longer exists.")
+        WearScreen(title = localToolsTitle, onBack = onBack) {
+            textItem(missingAssistant)
         }
         return
     }
 
-    WearScreen(title = "Local tools", onBack = onBack) {
+    val toolsDesc = stringResource(R.string.wear_asst_local_tools_desc)
+    val toolsSectionLabel = stringResource(R.string.wear_asst_tools)
+    val toolTexts = mutableMapOf<LocalToolOption, Pair<String, String>>()
+    for (info in localToolInfos) {
+        toolTexts[info.option] = stringResource(info.titleRes) to
+            stringResource(info.descriptionRes)
+    }
+
+    WearScreen(title = localToolsTitle, onBack = onBack) {
         textItem(
-            "Tools the assistant may call on this device. Changes apply to the next messages.",
+            toolsDesc,
             small = true,
             muted = true,
         )
-        section("Tools")
+        section(toolsSectionLabel)
         localToolInfos.forEach { info ->
             val checked = assistant.localTools.contains(info.option)
+            val (title, description) = toolTexts.getValue(info.option)
             toggleItem(
-                title = info.title,
-                subtitle = info.description,
+                title = title,
+                subtitle = description,
                 checked = checked,
                 onCheckedChange = { enabled ->
                     val newTools = if (enabled) {

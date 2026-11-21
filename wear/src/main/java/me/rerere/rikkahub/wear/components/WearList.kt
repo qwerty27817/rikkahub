@@ -97,7 +97,7 @@ fun WearList(
     modifier: Modifier = Modifier,
     state: WearListState = rememberWearListState(),
     contentPadding: PaddingValues = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-    content: WearListScope.() -> Unit,
+    content: @Composable WearListScope.() -> Unit,
 ) {
     val scope = WearListScope()
     scope.content()

@@ -7,12 +7,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.mediagen.provider.MediaGenerationProviderSetting
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -58,6 +60,9 @@ fun WearMediaSettingsPage(
 
     val providers = settings.mediaGenerationProviders
     val editing = providers.find { it.id == editingId }
+    val deletedMessage = stringResource(R.string.wear_svc_media_deleted)
+    val addProviderLabel = stringResource(R.string.wear_svc_media_add)
+    val imageModelUpdated = stringResource(R.string.wear_svc_image_model_updated)
 
     val imageModels: List<Pair<ProviderSetting, Model>> = settings.providers.flatMap { provider ->
         provider.models
@@ -89,7 +94,7 @@ fun WearMediaSettingsPage(
                     }
                 }
                 editingId = null
-                toaster.show("Media provider deleted", ToastType.Success)
+                toaster.show(deletedMessage, ToastType.Success)
             },
         )
         return
@@ -97,46 +102,56 @@ fun WearMediaSettingsPage(
 
     val titles = numberedTitles(providers.map { it.name.ifBlank { it.typeLabel() } })
     val currentImageModel = imageModels.firstOrNull { it.second.id == settings.imageGenerationModelId }
-    val currentImageModelLabel = currentImageModel?.let { (provider, model) ->
-        "${provider.name.ifBlank { provider.typeLabel() }}: ${model.displayName.ifBlank { model.modelId }}"
-    } ?: "Not selected"
+    val currentImageModelLabel = if (currentImageModel != null) {
+        stringResource(
+            R.string.wear_svc_provider_model_label,
+            currentImageModel.first.name.ifBlank { currentImageModel.first.typeLabel() },
+            currentImageModel.second.displayName.ifBlank { currentImageModel.second.modelId },
+        )
+    } else {
+        stringResource(R.string.wear_svc_not_selected)
+    }
     val imageModelLabels = imageModels.map { (provider, model) ->
-        "${provider.name.ifBlank { provider.typeLabel() }}: ${model.displayName.ifBlank { model.modelId }}"
+        stringResource(
+            R.string.wear_svc_provider_model_label,
+            provider.name.ifBlank { provider.typeLabel() },
+            model.displayName.ifBlank { model.modelId },
+        )
     }
 
-    WearScreen(title = "Media", onBack = onBack) {
-        section("Image generation")
-        infoItem("Image model", currentImageModelLabel)
-        buttonItem(label = "Select image model", icon = WearIcons.Image, tonal = true) {
+    WearScreen(title = stringResource(R.string.wear_svc_media_title), onBack = onBack) {
+        section(stringResource(R.string.wear_svc_image_generation))
+        infoItem(stringResource(R.string.wear_svc_image_model), currentImageModelLabel)
+        buttonItem(label = stringResource(R.string.wear_svc_select_image_model), icon = WearIcons.Image, tonal = true) {
             showImageModel = true
         }
         if (imageModels.isEmpty()) {
             textItem(
-                text = "No image model found. Add an image model to an AI provider first.",
+                text = stringResource(R.string.wear_svc_no_image_model),
                 maxLines = 3,
                 small = true,
                 muted = true,
             )
         }
 
-        section("Generation providers")
+        section(stringResource(R.string.wear_svc_generation_providers))
         if (providers.isEmpty()) {
-            textItem("No media generation providers configured.")
+            textItem(stringResource(R.string.wear_svc_media_empty))
         }
         providers.forEachIndexed { index, provider ->
             val modelCount = provider.models.size
             navItem(
                 title = titles[index],
-                subtitle = "${provider.typeLabel()} · $modelCount model(s)",
+                subtitle = stringResource(R.string.wear_svc_media_provider_subtitle, provider.typeLabel(), modelCount),
                 icon = WearIcons.Image,
                 onClick = { editingId = provider.id },
             )
         }
-        buttonItem(label = "Add media provider", icon = WearIcons.Add, tonal = true) {
+        buttonItem(label = addProviderLabel, icon = WearIcons.Add, tonal = true) {
             showAdd = true
         }
         textItem(
-            text = "Per-provider model lists are edited on the phone app.",
+            text = stringResource(R.string.wear_svc_media_phone_hint),
             maxLines = 3,
             small = true,
             muted = true,
@@ -146,7 +161,7 @@ fun WearMediaSettingsPage(
     if (showImageModel) {
         WearOptionDialog(
             visible = true,
-            title = "Image generation model",
+            title = stringResource(R.string.wear_svc_image_generation_model),
             options = imageModelLabels,
             selectedIndex = imageModelLabels.indexOf(currentImageModelLabel),
             onSelect = { index ->
@@ -156,7 +171,7 @@ fun WearMediaSettingsPage(
                     scope.launch {
                         store.update { latest -> latest.copy(imageGenerationModelId = model.id) }
                     }
-                    toaster.show("Image model updated", ToastType.Success)
+                    toaster.show(imageModelUpdated, ToastType.Success)
                 }
             },
             onDismiss = { showImageModel = false },
@@ -166,7 +181,7 @@ fun WearMediaSettingsPage(
     if (showAdd) {
         WearOptionDialog(
             visible = true,
-            title = "Add media provider",
+            title = addProviderLabel,
             options = mediaFactories.map { it.label },
             onSelect = { index ->
                 val factory = mediaFactories.getOrNull(index)
@@ -195,50 +210,64 @@ private fun MediaProviderDetail(
 ) {
     var editField by remember(provider.id) { mutableStateOf<MediaField?>(null) }
     var confirmDelete by remember(provider.id) { mutableStateOf(false) }
+    val notSetLabel = stringResource(R.string.wear_svc_not_set)
+    val thisProviderLabel = stringResource(R.string.wear_svc_this_provider)
+    val deleteMessage = stringResource(
+        R.string.wear_svc_media_delete_message,
+        provider.name.ifBlank { thisProviderLabel },
+    )
 
     BackHandler(onBack = onBack)
 
     WearScreen(title = provider.name.ifBlank { provider.typeLabel() }, onBack = onBack) {
-        infoItem("Type", provider.typeLabel())
+        infoItem(stringResource(R.string.wear_svc_type), provider.typeLabel())
         navItem(
-            title = "Name",
-            subtitle = provider.name.ifBlank { "Not set" },
+            title = stringResource(R.string.wear_svc_name),
+            subtitle = provider.name.ifBlank { notSetLabel },
             icon = WearIcons.Settings,
             onClick = { editField = MediaField.NAME },
         )
         navItem(
-            title = "API key",
-            subtitle = if (provider.apiKey.isBlank()) "Not set" else maskSecret(provider.apiKey),
+            title = stringResource(R.string.wear_svc_api_key),
+            subtitle = if (provider.apiKey.isBlank()) notSetLabel else maskSecret(provider.apiKey),
             icon = WearIcons.Cpu,
             onClick = { editField = MediaField.API_KEY },
         )
         navItem(
-            title = "Base URL",
-            subtitle = provider.baseUrl.ifBlank { "Not set" },
+            title = stringResource(R.string.wear_svc_base_url),
+            subtitle = provider.baseUrl.ifBlank { notSetLabel },
             icon = WearIcons.Web,
             onClick = { editField = MediaField.BASE_URL },
         )
         if (provider is MediaGenerationProviderSetting.Aliyun) {
             navItem(
-                title = "Workspace ID",
-                subtitle = provider.workspaceId.ifBlank { "Not set" },
+                title = stringResource(R.string.wear_svc_workspace_id),
+                subtitle = provider.workspaceId.ifBlank { notSetLabel },
                 icon = WearIcons.Settings,
                 onClick = { editField = MediaField.WORKSPACE_ID },
             )
         }
 
-        section("Models")
+        section(stringResource(R.string.wear_svc_models))
         if (provider.models.isEmpty()) {
-            textItem("No models configured for this provider.")
+            textItem(stringResource(R.string.wear_svc_media_models_empty))
         }
         provider.models.forEachIndexed { index, model ->
             infoItem(
-                "Model ${index + 1}",
-                "${model.kind.name.lowercase()} · ${model.modelId.ifBlank { model.displayName }}",
+                stringResource(R.string.wear_svc_media_model_item, index + 1),
+                stringResource(
+                    R.string.wear_svc_media_model_value,
+                    model.kind.name.lowercase(),
+                    model.modelId.ifBlank { model.displayName },
+                ),
             )
         }
 
-        buttonItem(label = "Delete provider", icon = WearIcons.Delete, tonal = true) {
+        buttonItem(
+            label = stringResource(R.string.wear_svc_delete_provider),
+            icon = WearIcons.Delete,
+            tonal = true,
+        ) {
             confirmDelete = true
         }
     }
@@ -246,10 +275,10 @@ private fun MediaProviderDetail(
     val field = editField
     if (field != null) {
         val title = when (field) {
-            MediaField.NAME -> "Provider name"
-            MediaField.API_KEY -> "API key"
-            MediaField.BASE_URL -> "Base URL"
-            MediaField.WORKSPACE_ID -> "Workspace ID"
+            MediaField.NAME -> stringResource(R.string.wear_svc_provider_name)
+            MediaField.API_KEY -> stringResource(R.string.wear_svc_api_key)
+            MediaField.BASE_URL -> stringResource(R.string.wear_svc_base_url)
+            MediaField.WORKSPACE_ID -> stringResource(R.string.wear_svc_workspace_id)
         }
         val initialValue = when (field) {
             MediaField.NAME -> provider.name
@@ -282,9 +311,9 @@ private fun MediaProviderDetail(
 
     WearConfirmDialog(
         visible = confirmDelete,
-        title = "Delete provider?",
-        message = provider.name.ifBlank { "This provider" } + " will be removed.",
-        confirmLabel = "Delete",
+        title = stringResource(R.string.wear_svc_delete_provider_title),
+        message = deleteMessage,
+        confirmLabel = stringResource(R.string.wear_common_delete),
         danger = true,
         onConfirm = {
             confirmDelete = false
@@ -294,18 +323,21 @@ private fun MediaProviderDetail(
     )
 }
 
+@Composable
 private fun numberedTitles(names: List<String>): List<String> {
+    val unnamed = stringResource(R.string.wear_svc_unnamed_provider)
     val seen = mutableMapOf<String, Int>()
     return names.map { name ->
-        val label = name.ifBlank { "Unnamed provider" }
+        val label = name.ifBlank { unnamed }
         val count = (seen[label] ?: 0) + 1
         seen[label] = count
         if (count == 1) label else "$label #$count"
     }
 }
 
+@Composable
 private fun maskSecret(value: String): String = when {
-    value.isBlank() -> "Not set"
+    value.isBlank() -> stringResource(R.string.wear_svc_not_set)
     value.length <= 4 -> "••••"
     else -> "••••${value.takeLast(4)}"
 }

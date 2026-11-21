@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -24,6 +25,7 @@ import androidx.wear.compose.material3.AlertDialog
 import androidx.wear.compose.material3.Button
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
+import me.rerere.rikkahub.wear.R
 
 /**
  * 手表端文本输入框：Wear M3 没有 TextField，这里用 BasicTextField 套一层紧凑容器，
@@ -140,7 +142,7 @@ fun WearInputDialog(
             Button(onClick = { onConfirm(value.value) }) { Text(confirmLabel) }
         },
         dismissButton = {
-            Button(onClick = onDismiss) { Text("Cancel") }
+            Button(onClick = onDismiss) { Text(stringResource(R.string.wear_cancel)) }
         },
         title = { Text(title) },
         text = {
@@ -172,7 +174,7 @@ fun WearOptionDialog(
         visible = visible,
         onDismissRequest = onDismiss,
         confirmButton = {
-            Button(onClick = onDismiss) { Text("Close") }
+            Button(onClick = onDismiss) { Text(stringResource(R.string.wear_close)) }
         },
         title = { Text(title) },
         content = {

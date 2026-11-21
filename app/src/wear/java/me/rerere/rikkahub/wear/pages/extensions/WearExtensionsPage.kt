@@ -2,7 +2,9 @@ package me.rerere.rikkahub.wear.pages.extensions
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.pages.extensions.skills.SkillsVM
 import me.rerere.rikkahub.wear.WearIcons
@@ -23,27 +25,44 @@ fun WearExtensionsPage(
     val skillsVm: SkillsVM = koinViewModel<SkillsVM>()
     val skills by skillsVm.skills.collectAsStateWithLifecycle()
 
-    WearScreen(title = "Extensions", onBack = onBack) {
+    // WearScreen 的 content 是普通 DSL builder（非 @Composable），字符串要先在外部取好。
+    val title = stringResource(R.string.wear_ext_title)
+    val promptsTitle = stringResource(R.string.wear_ext_prompts_title)
+    val promptsSubtitle = stringResource(
+        R.string.wear_ext_prompts_subtitle,
+        settings.modeInjections.size,
+        settings.lorebooks.size,
+    )
+    val quickMessagesTitle = stringResource(R.string.wear_ext_quick_messages_title)
+    val quickMessagesSubtitle = stringResource(
+        R.string.wear_ext_quick_messages_subtitle,
+        settings.quickMessages.size,
+    )
+    val skillsTitle = stringResource(R.string.wear_ext_skills_title)
+    val skillsSubtitle = stringResource(R.string.wear_ext_skills_subtitle, skills.size)
+    val sharedNote = stringResource(R.string.wear_ext_shared_note)
+
+    WearScreen(title = title, onBack = onBack) {
         navItem(
-            title = "Prompt injections",
-            subtitle = "${settings.modeInjections.size} modes · ${settings.lorebooks.size} lorebooks",
+            title = promptsTitle,
+            subtitle = promptsSubtitle,
             icon = WearIcons.Ai,
             onClick = onOpenPrompts,
         )
         navItem(
-            title = "Quick messages",
-            subtitle = "${settings.quickMessages.size} saved",
+            title = quickMessagesTitle,
+            subtitle = quickMessagesSubtitle,
             icon = WearIcons.Messages,
             onClick = onOpenQuickMessages,
         )
         navItem(
-            title = "Agent skills",
-            subtitle = "${skills.size} installed",
+            title = skillsTitle,
+            subtitle = skillsSubtitle,
             icon = WearIcons.Skills,
             onClick = onOpenSkills,
         )
         textItem(
-            "Extensions are shared by all assistants. Assign them to an assistant from Settings → Assistants.",
+            sharedNote,
             small = true,
             muted = true,
         )

@@ -190,12 +190,15 @@ curl http://127.0.0.1:8096/ping
 
 | 文件 | SHA-256 |
 |---|---|
-| `app-github-wear-armeabi-v7a-release.apk` | `bd6e80c1b3137d72a53db7c7447dd2d59c91262007e448a8ce0a622614d7eca8` |
-| `app-github-wear-arm64-v8a-release.apk` | `fa8143383f1e573e4e7a41d4b72663db8b60961d2decbc2f467c0bfc45671533` |
+| `app-github-wear-armeabi-v7a-release.apk` | `37be9e04d51f83459ebd32ce861bbe822af18697181a2775812b247bb25cc966` |
+| `app-github-wear-arm64-v8a-release.apk` | `72e29c3c311b8b1b8fa4a208a5fadf5235bff98e34a291ba2e7f0783d08abd87` |
 
 
 - **主题默认值**：手表变体首次启动写入 `colorMode=DARK` + `amoledDark=true`，深色模式不再被系统「未开启深色」误导；之后完全尊重用户选择（外观设置里可改回跟随系统/浅色）。
 - **圆屏复测（2026-11-21 夜，模拟器 454×454）**：修复聊天页标题栏与底部按钮被圆形裁切的问题（圆屏标题栏内缩、语音/重生成移入标题栏与菜单、底部只保留居中的 Reply/Stop）；所有页面返回按钮由整行大按钮改为圆形小图标；`infoItem` 长值改为 40/60 分栏并右对齐换行，避免 "Device" 被挤成竖排单字。
+
+
+- **中文界面**：手表页面已接入 830 条 `wear_*` 字符串（`app/src/wear/res/values/strings_wear_pages.xml` + `values-zh-rCN` + `values-zh`），共享组件（返回/取消/关闭/重试/错误）另有 `wear/src/main/res/values*` 中文；模拟器切换 `zh-CN` 后主页/聊天/设置/关于/形态设置均已中文显示。保留英文的仅为技术内容（品牌名、URL、ABI、形状检测枚举如 round/heuristic、剪贴板标签等）。
 
 - **手机回归**：`assembleGithubPhoneDebug` / `assembleGithubPhoneRelease` 通过，launcher 仍是 `RouteActivity`，手机 UI（`ChatPage` 等）保留；手机变体同时支持 armeabi-v7a（所有 native 依赖都有 v7a 产物）。
 
@@ -205,7 +208,6 @@ curl http://127.0.0.1:8096/ping
 
 ## 已知限制
 
-- **中文界面**：手表页面目前仍以英文硬编码为主（手机端字符串资源齐全），中文翻译（`values-zh-rCN` + `stringResource` 改造）尚未完成，属下一步工作。
 
 - 手机 UI 源码仍在 `main` source set 中，wear 变体不注册其入口、Release 经 R8/资源收缩剥离；如需源码级彻底移除，下一步可把手机 UI 迁到 `src/phone`。
 - 本地 wear 构建会额外生成一个无 native 的 x86_64 split（`splits.abi` 是全局配置）；发布脚本只选择 v7a/arm64/universal。

@@ -5,10 +5,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceDetailVM
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalEntry
 import me.rerere.rikkahub.wear.WearIcons
@@ -41,9 +43,21 @@ fun WearWorkspaceTerminalPage(
     val workspace = state.workspace
     val rootfsReady = workspace?.shellStatus == me.rerere.workspace.WorkspaceShellStatus.READY.name
 
-    WearScreen(title = "Console", onBack = onBack) {
+    // WearScreen 的 content 是普通 DSL builder（非 @Composable），字符串要先在外部取好。
+    val consoleTitle = stringResource(R.string.wear_ws_console_title)
+    val rootfsMissing = stringResource(R.string.wear_ws_console_rootfs_missing)
+    val commandPlaceholder = stringResource(R.string.wear_ws_console_placeholder)
+    val runningLabel = stringResource(R.string.wear_ws_console_running)
+    val commandLabel = stringResource(R.string.wear_ws_console_command)
+    val runLabel = stringResource(R.string.wear_ws_console_run)
+    val clearLabel = stringResource(R.string.wear_ws_console_clear)
+    val outputSection = stringResource(R.string.wear_ws_section_output)
+    val emptyHint = stringResource(R.string.wear_ws_console_empty)
+    val noOutputLabel = stringResource(R.string.wear_ws_console_no_output)
+
+    WearScreen(title = consoleTitle, onBack = onBack) {
         if (!rootfsReady) {
-            textItem("Rootfs is not installed. Open the workspace page and install it first.")
+            textItem(rootfsMissing)
         }
         item(key = "input") {
             WearTextField(
@@ -51,44 +65,48 @@ fun WearWorkspaceTerminalPage(
                 onValueChange = { input = it },
                 singleLine = false,
                 minLines = 2,
-                placeholder = "uname -a",
-                label = if (terminal.running) "Running…" else "Command",
+                placeholder = commandPlaceholder,
+                label = if (terminal.running) runningLabel else commandLabel,
             )
         }
         buttonItem(
-            label = "Run",
+            label = runLabel,
             icon = WearIcons.Play,
             enabled = !terminal.running && input.isNotBlank(),
         ) {
             vm.executeTerminalCommand(input)
             input = ""
         }
-        buttonItem(label = "Clear output", icon = WearIcons.Delete, tonal = true) {
+        buttonItem(label = clearLabel, icon = WearIcons.Delete, tonal = true) {
             vm.clearTerminal()
         }
-        section("Output")
+        section(outputSection)
         if (terminal.history.isEmpty()) {
-            textItem("Nothing yet. Try `ls /` or `cat /etc/os-release`.", small = true, muted = true)
+            textItem(emptyHint, small = true, muted = true)
         }
         terminal.history.asReversed().forEachIndexed { index, entry ->
             item(key = "history:${terminal.history.size - index}") {
                 when (entry) {
                     is WorkspaceTerminalEntry.Command -> Text(
-                        text = "$ ${entry.command}",
+                        text = stringResource(R.string.wear_ws_console_prompt, entry.command),
                         style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
                         color = MaterialTheme.colorScheme.primary,
                     )
                     is WorkspaceTerminalEntry.Result -> {
+                        val exitLine = if (entry.result.timedOut) {
+                            stringResource(R.string.wear_ws_console_exit_timed_out, entry.result.exitCode)
+                        } else {
+                            stringResource(R.string.wear_ws_console_exit, entry.result.exitCode)
+                        }
                         val output = buildString {
                             if (entry.result.stdout.isNotBlank()) append(entry.result.stdout.trimEnd())
                             if (entry.result.stderr.isNotBlank()) {
                                 if (isNotEmpty()) append('\n')
                                 append(entry.result.stderr.trimEnd())
                             }
-                            if (isEmpty()) append("(no output)")
-                            append("\n")
-                            append("[exit ${entry.result.exitCode}]")
-                            if (entry.result.timedOut) append(" timed out")
+                            if (isEmpty()) append(noOutputLabel)
+                            append('\n')
+                            append(exitLine)
                         }
                         Text(
                             text = output.take(4000),

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="wear_common_back">Back</string>
+  <string name="wear_common_cancel">Cancel</string>
+  <string name="wear_common_close">Close</string>
+  <string name="wear_common_ok">OK</string>
+  <string name="wear_common_delete">Delete</string>
+  <string name="wear_common_retry">Retry</string>
+  <string name="wear_common_something_wrong">Something went wrong</string>
+  <string name="wear_common_continue">Continue</string>
+  <string name="wear_common_exit">Exit</string>
+
+  <string name="wear_common_screen_shape">Screen shape</string>
+  <string name="wear_common_auto">Auto</string>
+  <string name="wear_common_force_square">Force square</string>
+  <string name="wear_common_force_round">Force round</string>
+  <string name="wear_common_display">Display</string>
+  <string name="wear_common_square">Square</string>
+  <string name="wear_common_round">Round</string>
+  <string name="wear_common_detected_auto">Detected: %1$s · %2$s</string>
+
+  <string name="wear_common_crash_title">RikkaHub crashed last time</string>
+  <string name="wear_common_crash_message">You can continue with a fresh start, or close the app. The stack trace below is kept for diagnostics.</string>
+  <string name="wear_common_crash_no_trace">No stack trace was recorded.</string>
+</resources>

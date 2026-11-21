@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="wear_back">Back</string>
+  <string name="wear_cancel">Cancel</string>
+  <string name="wear_close">Close</string>
+  <string name="wear_retry">Retry</string>
+  <string name="wear_something_wrong">Something went wrong</string>
+</resources>

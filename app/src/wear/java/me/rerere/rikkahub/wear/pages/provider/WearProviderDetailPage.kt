@@ -6,7 +6,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import me.rerere.ai.provider.Model
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -42,39 +44,47 @@ fun WearProviderDetailPage(
     var addModel by remember { mutableStateOf(false) }
 
     if (provider == null) {
-        WearScreen(title = "Provider", onBack = onBack) {
-            textItem("This provider no longer exists.")
+        WearScreen(title = stringResource(R.string.wear_svc_provider_title), onBack = onBack) {
+            textItem(stringResource(R.string.wear_svc_provider_missing))
         }
         return
     }
 
-    WearScreen(title = provider.name.ifBlank { provider.typeLabel() }, onBack = onBack) {
-        infoItem("Type", provider.typeLabel())
-        infoItem("Models", "${provider.models.size}")
+    val providerLabel = wearProviderTypeLabel(provider)
+    val notSetLabel = stringResource(R.string.wear_svc_not_set)
+    val modelAdded = stringResource(R.string.wear_svc_model_added)
+
+    WearScreen(title = provider.name.ifBlank { providerLabel }, onBack = onBack) {
+        infoItem(stringResource(R.string.wear_svc_type), providerLabel)
+        infoItem(stringResource(R.string.wear_svc_models), "${provider.models.size}")
         toggleItem(
-            title = "Enabled",
+            title = stringResource(R.string.wear_svc_enable),
             checked = provider.enabled,
             onCheckedChange = { enabled ->
                 scope.launch { store.updateProvider(providerId) { it.withEnabledValue(enabled) } }
             },
         )
-        navItem("Name", provider.name, WearIcons.Settings) { editField = EditField.NAME }
+        navItem(stringResource(R.string.wear_svc_name), provider.name, WearIcons.Settings) {
+            editField = EditField.NAME
+        }
 
         val apiKey = provider.apiKeyOrNull()
         if (apiKey != null) {
             navItem(
-                title = "API key",
-                subtitle = if (apiKey.isBlank()) "Not set" else "••••••${apiKey.takeLast(4)}",
+                title = stringResource(R.string.wear_svc_api_key),
+                subtitle = if (apiKey.isBlank()) notSetLabel else "••••••${apiKey.takeLast(4)}",
                 icon = WearIcons.Cpu,
             ) { editField = EditField.API_KEY }
         }
         val baseUrl = provider.baseUrlOrNull()
         if (baseUrl != null) {
-            navItem("Base URL", baseUrl, WearIcons.Web) { editField = EditField.BASE_URL }
+            navItem(stringResource(R.string.wear_svc_base_url), baseUrl, WearIcons.Web) {
+                editField = EditField.BASE_URL
+            }
         }
 
         if (provider.models.isNotEmpty()) {
-            section("Models")
+            section(stringResource(R.string.wear_svc_models))
             provider.models.take(10).forEach { model ->
                 textItem(
                     text = model.displayName.ifBlank { model.modelId },
@@ -83,16 +93,20 @@ fun WearProviderDetailPage(
                 )
             }
             if (provider.models.size > 10) {
-                textItem("+${provider.models.size - 10} more")
+                textItem(stringResource(R.string.wear_svc_more_models, provider.models.size - 10))
             }
         }
-        buttonItem(label = "Add model", icon = WearIcons.Add, tonal = true) {
+        buttonItem(label = stringResource(R.string.wear_svc_add_model), icon = WearIcons.Add, tonal = true) {
             addModel = true
         }
 
         if (!provider.builtIn && settings.providers.size > 1) {
-            section("Danger")
-            buttonItem(label = "Delete provider", icon = WearIcons.Delete, tonal = true) {
+            section(stringResource(R.string.wear_svc_danger))
+            buttonItem(
+                label = stringResource(R.string.wear_svc_delete_provider),
+                icon = WearIcons.Delete,
+                tonal = true,
+            ) {
                 confirmDelete = true
             }
         }
@@ -105,11 +119,12 @@ fun WearProviderDetailPage(
         null -> ""
     }
     val dialogTitle = when (editField) {
-        EditField.NAME -> "Provider name"
-        EditField.API_KEY -> "API key"
-        EditField.BASE_URL -> "Base URL"
+        EditField.NAME -> stringResource(R.string.wear_svc_provider_name)
+        EditField.API_KEY -> stringResource(R.string.wear_svc_api_key)
+        EditField.BASE_URL -> stringResource(R.string.wear_svc_base_url)
         null -> ""
     }
+    val savedMessage = stringResource(R.string.wear_svc_saved, dialogTitle)
     if (editField != null) {
         WearInputDialog(
             visible = true,
@@ -133,7 +148,7 @@ fun WearProviderDetailPage(
                             null -> p
                         }
                     }
-                    toaster.show("$dialogTitle saved", ToastType.Success)
+                    toaster.show(savedMessage, ToastType.Success)
                 }
             },
             onDismiss = { editField = null },
@@ -143,7 +158,7 @@ fun WearProviderDetailPage(
     if (addModel) {
         WearInputDialog(
             visible = true,
-            title = "Add model",
+            title = stringResource(R.string.wear_svc_add_model),
             initialValue = "",
             singleLine = true,
             placeholder = "gpt-4o-mini",
@@ -159,7 +174,7 @@ fun WearProviderDetailPage(
                                 )
                             )
                         }
-                        toaster.show("Model added", ToastType.Success)
+                        toaster.show(modelAdded, ToastType.Success)
                     }
                 }
             },
@@ -169,9 +184,9 @@ fun WearProviderDetailPage(
 
     WearConfirmDialog(
         visible = confirmDelete,
-        title = "Delete provider?",
-        message = "Models from this provider will be removed from the model list.",
-        confirmLabel = "Delete",
+        title = stringResource(R.string.wear_svc_delete_provider_title),
+        message = stringResource(R.string.wear_svc_delete_provider_message),
+        confirmLabel = stringResource(R.string.wear_common_delete),
         danger = true,
         onConfirm = {
             confirmDelete = false

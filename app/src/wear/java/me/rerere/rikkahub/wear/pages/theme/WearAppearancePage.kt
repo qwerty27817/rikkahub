@@ -55,16 +55,27 @@ fun WearAppearancePage(
     val amoledTitle = stringResource(R.string.setting_display_page_amoled_dark_mode_title)
     val amoledDesc = stringResource(R.string.setting_display_page_amoled_dark_mode_desc)
     val presetLabels = presetThemeLabels()
+
+    val title = stringResource(R.string.wear_set_appearance)
+    val colorModeSection = stringResource(R.string.wear_set_color_mode)
+    val themeSection = stringResource(R.string.wear_set_section_theme)
+    val dynamicColorNote = stringResource(R.string.wear_set_dynamic_color_note)
+    val themePresetTitle = stringResource(R.string.wear_set_theme_preset)
+    val customThemeFallback = stringResource(R.string.wear_set_custom_theme)
+    val customThemesHint = stringResource(R.string.wear_set_custom_themes_hint)
+    val darkSection = stringResource(R.string.wear_set_section_dark)
+    val selectedTheme = stringResource(R.string.wear_set_selected_theme)
+
     val customThemeLabels = settings.customThemes.map { theme ->
-        theme.id to theme.name.ifBlank { "Custom theme" }
+        theme.id to theme.name.ifBlank { customThemeFallback }
     }
     val themeChoices = presetLabels + customThemeLabels
     val selectedThemeLabel = themeChoices.firstOrNull { it.first == settings.themeId }?.second
         ?: settings.themeId
     val selectedThemeIndex = themeChoices.indexOfFirst { it.first == settings.themeId }
 
-    WearScreen(title = "Appearance", onBack = onBack) {
-        section("Color mode")
+    WearScreen(title = title, onBack = onBack) {
+        section(colorModeSection)
         radioItem(
             title = systemLabel,
             selected = colorMode == ColorMode.SYSTEM,
@@ -81,7 +92,7 @@ fun WearAppearancePage(
             onSelect = { colorMode = ColorMode.DARK },
         )
 
-        section("Theme")
+        section(themeSection)
         toggleItem(
             title = dynamicColorTitle,
             checked = settings.dynamicColor,
@@ -92,41 +103,41 @@ fun WearAppearancePage(
         )
         if (settings.dynamicColor) {
             textItem(
-                text = "Dynamic color replaces preset colors on Android 12+.",
+                text = dynamicColorNote,
                 maxLines = 3,
                 small = true,
                 muted = true,
             )
         }
         navItem(
-            title = "Theme preset",
+            title = themePresetTitle,
             subtitle = selectedThemeLabel,
             icon = WearIcons.Theme,
             onClick = { showThemePicker = true },
         )
         if (settings.customThemes.isEmpty()) {
             textItem(
-                text = "Create or import custom themes on the phone app.",
+                text = customThemesHint,
                 maxLines = 3,
                 small = true,
                 muted = true,
             )
         }
 
-        section("Dark")
+        section(darkSection)
         toggleItem(
             title = amoledTitle,
             checked = amoledDarkMode,
             subtitle = amoledDesc,
             onCheckedChange = { amoledDarkMode = it },
         )
-        infoItem("Selected theme", selectedThemeLabel)
+        infoItem(selectedTheme, selectedThemeLabel)
     }
 
     if (showThemePicker) {
         WearOptionDialog(
             visible = true,
-            title = "Theme preset",
+            title = themePresetTitle,
             options = themeChoices.map { it.second },
             selectedIndex = selectedThemeIndex,
             onSelect = { index ->

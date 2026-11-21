@@ -15,8 +15,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.wear.WearIcons
 import me.rerere.rikkahub.wear.components.WearScreen
 import me.rerere.rikkahub.wear.components.WearTextField
@@ -63,20 +65,27 @@ private fun WearWebUrlInput(
 ) {
     var input by remember(initialUrl) { mutableStateOf(initialUrl) }
 
-    WearScreen(title = "Web", onBack = onBack) {
-        textItem("Open a web page in the built-in WebView.", small = true, muted = true)
+    // WearScreen 的 content 是普通 DSL builder（非 @Composable），先算好所有字符串。
+    val title = stringResource(R.string.wear_misc_webview_title)
+    val hint = stringResource(R.string.wear_misc_webview_hint)
+    val urlLabel = stringResource(R.string.wear_misc_webview_url)
+    val urlPlaceholder = stringResource(R.string.wear_misc_webview_url_placeholder)
+    val open = stringResource(R.string.wear_misc_open)
+
+    WearScreen(title = title, onBack = onBack) {
+        textItem(hint, small = true, muted = true)
         item(key = "url") {
             WearTextField(
                 value = input,
                 onValueChange = { input = it },
-                label = "URL",
-                placeholder = "https://example.com",
+                label = urlLabel,
+                placeholder = urlPlaceholder,
                 singleLine = true,
                 keyboardType = KeyboardType.Uri,
             )
         }
         buttonItem(
-            label = "Open",
+            label = open,
             icon = WearIcons.Web,
             enabled = input.isNotBlank(),
         ) {
@@ -131,7 +140,10 @@ private fun WearWebContent(
                 .padding(bottom = 8.dp)
                 .size(40.dp),
         ) {
-            Icon(imageVector = WearIcons.Back, contentDescription = "Back")
+            Icon(
+                imageVector = WearIcons.Back,
+                contentDescription = stringResource(R.string.wear_misc_back),
+            )
         }
     }
 }

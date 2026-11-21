@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -23,8 +24,13 @@ import androidx.wear.compose.material3.Card
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
 import coil3.compose.AsyncImage
+import me.rerere.mediagen.model.ImageRole
+import me.rerere.mediagen.model.MediaKind
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.MediaCreationAsset
+import me.rerere.rikkahub.data.model.MediaCreationAssetType
 import me.rerere.rikkahub.data.model.MediaCreationNode
+import me.rerere.rikkahub.data.model.MediaCreationStatus
 import me.rerere.rikkahub.data.model.canSubmit
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -56,12 +62,36 @@ fun WearMediaCreationPage(
     val toaster = LocalToaster.current
     val promptText = vm.promptState.text.toString()
 
+    // WearScreen 的 content 是普通 DSL builder（非 @Composable），先算好所有字符串。
+    val mediaCreationTitle = stringResource(R.string.wear_misc_media_creation_title)
+    val uploadNotConfigured = stringResource(R.string.wear_misc_media_upload_not_configured)
+    val composeSection = stringResource(R.string.wear_misc_media_section_compose)
+    val promptLabel = stringResource(R.string.wear_misc_prompt)
+    val promptPlaceholder = stringResource(R.string.wear_misc_media_prompt_placeholder)
+    val modelLabel = stringResource(R.string.wear_misc_model)
+    val notSelected = stringResource(R.string.wear_misc_not_selected)
+    val sessionLabel = stringResource(R.string.wear_misc_media_session)
+    val loadingLabel = stringResource(R.string.wear_misc_loading)
+    val noProvidersHint = stringResource(R.string.wear_misc_media_no_providers)
+    val noModelHint = stringResource(R.string.wear_misc_media_no_model)
+    val attachmentsSection = stringResource(R.string.wear_misc_media_section_attachments)
+    val generate = stringResource(R.string.wear_misc_generate)
+    val clearInput = stringResource(R.string.wear_misc_clear_input)
+    val timelineSection = stringResource(R.string.wear_misc_media_section_timeline)
+    val emptyTimeline = stringResource(R.string.wear_misc_media_empty_timeline)
+    val modelValue = selection?.let {
+        "${it.model.modelId} · ${mediaKindLabel(it.model.kind)}"
+    } ?: notSelected
+    val sessionValue = session?.let {
+        stringResource(R.string.wear_misc_media_record_count, it.nodeCount)
+    } ?: loadingLabel
+
     LaunchedEffect(vm) {
         vm.events.collect { event ->
             when (event) {
                 is MediaCreationEvent.Error -> toaster.show(event.message, ToastType.Error)
                 MediaCreationEvent.UploadNotConfigured -> toaster.show(
-                    "Remote upload is not configured, so attachments cannot be sent.",
+                    uploadNotConfigured,
                     ToastType.Error,
                 )
 
@@ -76,38 +106,35 @@ fun WearMediaCreationPage(
     }
     val providersEmpty = settings.mediaGenerationProviders.isEmpty()
 
-    WearScreen(title = session?.title?.ifBlank { null } ?: "Media creation", onBack = onBack) {
-        section("Compose")
+    WearScreen(title = session?.title?.ifBlank { null } ?: mediaCreationTitle, onBack = onBack) {
+        section(composeSection)
         item(key = "prompt") {
             WearTextField(
                 value = promptText,
                 onValueChange = { vm.promptState.setTextAndPlaceCursorAtEnd(it) },
-                label = "Prompt",
-                placeholder = "Describe what to create",
+                label = promptLabel,
+                placeholder = promptPlaceholder,
                 singleLine = false,
                 minLines = 2,
             )
         }
-        infoItem(
-            "Model",
-            selection?.let { "${it.model.modelId} · ${it.model.kind.name.lowercase()}" } ?: "Not selected",
-        )
-        infoItem("Session", session?.let { "${it.nodeCount} items" } ?: "Loading…")
+        infoItem(modelLabel, modelValue)
+        infoItem(sessionLabel, sessionValue)
         if (providersEmpty) {
             textItem(
-                "No media generation providers configured. Add one in Media settings on the phone.",
+                noProvidersHint,
                 small = true,
                 muted = true,
             )
         } else if (selection == null) {
             textItem(
-                "No model selected for this session. Open it on the phone to choose one.",
+                noModelHint,
                 small = true,
                 muted = true,
             )
         }
         if (draft.assets.isNotEmpty()) {
-            section("Attachments")
+            section(attachmentsSection)
             draft.assets.forEachIndexed { index, asset ->
                 item(key = "asset:$index:${asset.path}") {
                     AssetRow(
@@ -118,20 +145,20 @@ fun WearMediaCreationPage(
             }
         }
         buttonItem(
-            label = "Generate",
+            label = generate,
             icon = WearIcons.Ai,
             enabled = canSubmit,
         ) { vm.generate() }
         buttonItem(
-            label = "Clear input",
+            label = clearInput,
             icon = WearIcons.Delete,
             tonal = true,
             enabled = promptText.isNotEmpty() || draft.assets.isNotEmpty(),
         ) { vm.clearDraft() }
 
-        section("Timeline")
+        section(timelineSection)
         if (nodes.itemCount == 0) {
-            textItem("No generations yet.", small = true, muted = true)
+            textItem(emptyTimeline, small = true, muted = true)
         } else {
             items(count = minOf(nodes.itemCount, 30)) { index ->
                 val node = nodes[index]
@@ -148,6 +175,9 @@ private fun AssetRow(
     asset: MediaCreationAsset,
     onRemove: () -> Unit,
 ) {
+    val roleLabel = mediaRoleLabel(asset.role)
+    val typeLabel = mediaTypeLabel(asset.type)
+    val removeAttachment = stringResource(R.string.wear_misc_media_remove_attachment)
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -161,7 +191,7 @@ private fun AssetRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "${asset.role.name.lowercase()} · ${asset.type.name.lowercase()}",
+                text = "$roleLabel · $typeLabel",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
@@ -170,7 +200,7 @@ private fun AssetRow(
         IconButton(onClick = onRemove) {
             Icon(
                 imageVector = WearIcons.Delete,
-                contentDescription = "Remove attachment",
+                contentDescription = removeAttachment,
                 tint = MaterialTheme.colorScheme.error,
             )
         }
@@ -183,6 +213,8 @@ private fun NodeCard(
     resolve: (String) -> File,
 ) {
     val record = node.record
+    val statusLabel = mediaStatusLabel(record.status)
+    val working = stringResource(R.string.wear_misc_media_working)
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (record.prompt.isNotBlank()) {
@@ -195,7 +227,7 @@ private fun NodeCard(
             }
             Text(
                 text = buildString {
-                    append(record.status.name.lowercase())
+                    append(statusLabel)
                     if (node.versionCount > 1) append(" · v${node.versionIndex + 1}/${node.versionCount}")
                     if (record.modelId.isNotBlank()) append(" · ${record.modelId}")
                 },
@@ -206,7 +238,7 @@ private fun NodeCard(
             )
             if (record.status.isActive) {
                 Text(
-                    text = "Working…",
+                    text = working,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -222,8 +254,13 @@ private fun NodeCard(
             }
             record.outputs.take(2).forEach { output ->
                 if (output.isVideo) {
+                    val videoInfo = stringResource(
+                        R.string.wear_misc_media_video_info,
+                        output.width?.toString() ?: "?",
+                        output.height?.toString() ?: "?",
+                    )
                     Text(
-                        text = "Video · ${output.width ?: "?"}x${output.height ?: "?"}",
+                        text = videoInfo,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -242,3 +279,35 @@ private fun NodeCard(
         }
     }
 }
+
+@Composable
+private fun mediaStatusLabel(status: MediaCreationStatus): String = stringResource(
+    when (status) {
+        MediaCreationStatus.PREPARING -> R.string.wear_misc_status_preparing
+        MediaCreationStatus.QUEUED -> R.string.wear_misc_status_queued
+        MediaCreationStatus.RUNNING -> R.string.wear_misc_status_running
+        MediaCreationStatus.DOWNLOADING -> R.string.wear_misc_status_downloading
+        MediaCreationStatus.SUCCEEDED -> R.string.wear_misc_status_succeeded
+        MediaCreationStatus.FAILED -> R.string.wear_misc_status_failed
+        MediaCreationStatus.CANCELLED -> R.string.wear_misc_status_cancelled
+    },
+)
+
+@Composable
+private fun mediaRoleLabel(role: ImageRole): String = stringResource(
+    when (role) {
+        ImageRole.FIRST_FRAME -> R.string.wear_misc_role_first_frame
+        ImageRole.LAST_FRAME -> R.string.wear_misc_role_last_frame
+        ImageRole.REFERENCE -> R.string.wear_misc_role_reference
+    },
+)
+
+@Composable
+private fun mediaTypeLabel(type: MediaCreationAssetType): String = stringResource(
+    if (type == MediaCreationAssetType.VIDEO) R.string.wear_misc_kind_video else R.string.wear_misc_kind_image,
+)
+
+@Composable
+private fun mediaKindLabel(kind: MediaKind): String = stringResource(
+    if (kind == MediaKind.VIDEO) R.string.wear_misc_kind_video else R.string.wear_misc_kind_image,
+)

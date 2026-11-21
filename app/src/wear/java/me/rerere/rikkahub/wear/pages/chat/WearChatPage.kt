@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -40,6 +41,7 @@ import kotlin.uuid.Uuid
 import kotlinx.coroutines.launch
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.getAssistantOf
 import me.rerere.rikkahub.data.model.getChatModelOf
 import me.rerere.rikkahub.ui.context.LocalASRState
@@ -85,6 +87,12 @@ fun WearChatPage(
     val asrState = LocalASRState.current
     val asr by asrState.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val defaultChatTitle = stringResource(R.string.wear_chat_title)
+    val noModelText = stringResource(R.string.wear_chat_no_model)
+    val listeningText = stringResource(R.string.wear_chat_listening)
+    val generationFailedText = stringResource(R.string.wear_chat_generation_failed)
+    val selectModelFirstText = stringResource(R.string.wear_chat_select_model_first)
+    val copiedText = stringResource(R.string.wear_chat_copied)
 
     var showInput by remember { mutableStateOf(false) }
     var inputText by remember { mutableStateOf("") }
@@ -106,7 +114,7 @@ fun WearChatPage(
     LaunchedEffect(errors.size) {
         errors.lastOrNull()?.let { error ->
             toaster.show(
-                message = error.title ?: error.error.message ?: "Generation failed",
+                message = error.title ?: error.error.message ?: generationFailedText,
                 type = ToastType.Error,
             )
         }
@@ -115,7 +123,7 @@ fun WearChatPage(
     fun send(text: String) {
         if (text.isBlank()) return
         if (chatModel == null) {
-            toaster.show("Select a model first", ToastType.Error)
+            toaster.show(selectModelFirstText, ToastType.Error)
             showInput = false
             modelPickerOpen = true
             return
@@ -144,8 +152,8 @@ fun WearChatPage(
 
     Column(modifier = Modifier.fillMaxSize()) {
         ChatTopBar(
-            title = conversation.title.ifBlank { assistant.name.ifBlank { "Chat" } },
-            subtitle = chatModel?.displayName?.ifBlank { chatModel.modelId } ?: "No model",
+            title = conversation.title.ifBlank { assistant.name.ifBlank { defaultChatTitle } },
+            subtitle = chatModel?.displayName?.ifBlank { chatModel.modelId } ?: noModelText,
             isRound = shapeState.shape == ScreenShape.ROUND,
             listening = listening,
             onBack = onBack,
@@ -233,7 +241,7 @@ fun WearChatPage(
         )
         if (listening) {
             Text(
-                text = asr.transcript.ifBlank { "Listening…" },
+                text = asr.transcript.ifBlank { listeningText },
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 maxLines = 2,
@@ -248,8 +256,13 @@ fun WearChatPage(
     if (menuOpen) {
         WearOptionDialog(
             visible = true,
-            title = conversation.title.ifBlank { "Chat" },
-            options = listOf("Choose model", "New chat", "Regenerate", "Delete conversation"),
+            title = conversation.title.ifBlank { defaultChatTitle },
+            options = listOf(
+                stringResource(R.string.wear_chat_choose_model),
+                stringResource(R.string.wear_chat_new_chat),
+                stringResource(R.string.wear_chat_regenerate),
+                stringResource(R.string.wear_chat_delete_conversation),
+            ),
             onSelect = { index ->
                 menuOpen = false
                 when (index) {
@@ -276,7 +289,7 @@ fun WearChatPage(
         }
         WearOptionDialog(
             visible = true,
-            title = "Choose model",
+            title = stringResource(R.string.wear_chat_choose_model),
             options = allModels.map { (provider, model) ->
                 "${model.displayName.ifBlank { model.modelId }} · $provider"
             },
@@ -292,14 +305,21 @@ fun WearChatPage(
     actionMessage?.let { message ->
         WearOptionDialog(
             visible = true,
-            title = "Message",
-            options = listOf("Copy", "Speak", "Regenerate", "Fork", "Edit", "Delete"),
+            title = stringResource(R.string.wear_chat_message),
+            options = listOf(
+                stringResource(R.string.wear_chat_copy),
+                stringResource(R.string.wear_chat_speak),
+                stringResource(R.string.wear_chat_regenerate),
+                stringResource(R.string.wear_chat_fork),
+                stringResource(R.string.wear_chat_edit),
+                stringResource(R.string.wear_chat_delete),
+            ),
             onSelect = { index ->
                 actionMessage = null
                 when (index) {
                     0 -> {
                         copyToClipboard(context, message.toText())
-                        toaster.show("Copied", ToastType.Success)
+                        toaster.show(copiedText, ToastType.Success)
                     }
                     1 -> tts.speak(message.toText())
                     2 -> vm.regenerateAtMessage(message)
@@ -334,7 +354,7 @@ private fun ChatMessageList(
         if (nodes.isEmpty()) {
             item(key = "empty") {
                 Text(
-                    text = "Say something to start.",
+                    text = stringResource(R.string.wear_chat_empty),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -357,7 +377,7 @@ private fun ChatMessageList(
                 ) {
                     CircularProgressIndicator()
                     Text(
-                        text = processingStatus ?: "Generating…",
+                        text = processingStatus ?: stringResource(R.string.wear_chat_generating),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -393,7 +413,7 @@ private fun ChatTopBar(
         ) {
             Icon(
                 imageVector = WearIcons.Back,
-                contentDescription = "Back",
+                contentDescription = stringResource(R.string.wear_chat_back),
                 tint = MaterialTheme.colorScheme.onSurface,
                 modifier = if (isRound) Modifier.size(18.dp) else Modifier,
             )
@@ -421,7 +441,11 @@ private fun ChatTopBar(
             ) {
                 Icon(
                     imageVector = if (listening) WearIcons.Check else WearIcons.Mic,
-                    contentDescription = if (listening) "Finish voice input" else "Voice input",
+                    contentDescription = if (listening) {
+                        stringResource(R.string.wear_chat_finish_voice_input)
+                    } else {
+                        stringResource(R.string.wear_chat_voice_input)
+                    },
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(18.dp),
                 )
@@ -433,7 +457,7 @@ private fun ChatTopBar(
         ) {
             Icon(
                 imageVector = WearIcons.More,
-                contentDescription = "Menu",
+                contentDescription = stringResource(R.string.wear_chat_menu),
                 tint = MaterialTheme.colorScheme.onSurface,
                 modifier = if (isRound) Modifier.size(18.dp) else Modifier,
             )
@@ -470,7 +494,13 @@ private fun ChatBottomBar(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(if (loading) "Stop" else "Reply")
+                    Text(
+                        if (loading) {
+                            stringResource(R.string.wear_chat_stop)
+                        } else {
+                            stringResource(R.string.wear_chat_reply)
+                        },
+                    )
                 }
             }
         }
@@ -487,12 +517,16 @@ private fun ChatBottomBar(
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(vertical = 6.dp),
             ) {
-                Text("Reply")
+                Text(stringResource(R.string.wear_chat_reply))
             }
             FilledIconButton(onClick = onVoice, modifier = Modifier.size(46.dp)) {
                 Icon(
                     imageVector = if (listening) WearIcons.Check else WearIcons.Mic,
-                    contentDescription = if (listening) "Finish voice input" else "Voice input",
+                    contentDescription = if (listening) {
+                        stringResource(R.string.wear_chat_finish_voice_input)
+                    } else {
+                        stringResource(R.string.wear_chat_voice_input)
+                    },
                 )
             }
             FilledIconButton(
@@ -501,7 +535,11 @@ private fun ChatBottomBar(
             ) {
                 Icon(
                     imageVector = if (loading) WearIcons.Stop else WearIcons.Retry,
-                    contentDescription = if (loading) "Stop" else "Regenerate",
+                    contentDescription = if (loading) {
+                        stringResource(R.string.wear_chat_stop)
+                    } else {
+                        stringResource(R.string.wear_chat_regenerate)
+                    },
                 )
             }
         }
@@ -517,8 +555,13 @@ private fun WearChatInputPage(
 ) {
     var text by remember { mutableStateOf(initialText) }
     val settings = LocalSettings.current
+    // WearScreen 的 content 是普通 DSL builder（非 @Composable），字符串需在进入 DSL 前取好
+    val inputTitle = stringResource(R.string.wear_chat_message)
+    val inputPlaceholder = stringResource(R.string.wear_chat_input_placeholder)
+    val sendLabel = stringResource(R.string.wear_chat_send)
+    val quickMessagesLabel = stringResource(R.string.wear_chat_quick_messages)
 
-    WearScreen(title = "Message", onBack = onBack) {
+    WearScreen(title = inputTitle, onBack = onBack) {
         item(key = "input") {
             WearTextField(
                 value = text,
@@ -529,12 +572,12 @@ private fun WearChatInputPage(
                 singleLine = false,
                 minLines = 3,
                 autoFocus = true,
-                placeholder = "Type a message",
+                placeholder = inputPlaceholder,
             )
         }
-        buttonItem(label = "Send", icon = WearIcons.Play) { onSend(text) }
+        buttonItem(label = sendLabel, icon = WearIcons.Play) { onSend(text) }
         if (settings.quickMessages.isNotEmpty()) {
-            section("Quick messages")
+            section(quickMessagesLabel)
             settings.quickMessages.take(6).forEach { quickMessage ->
                 buttonItem(
                     label = quickMessage.title.ifBlank { quickMessage.content.take(20) },

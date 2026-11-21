@@ -7,7 +7,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceDetailVM
 import me.rerere.rikkahub.wear.WearIcons
@@ -49,54 +51,82 @@ fun WearWorkspaceDetailPage(
 
     val workspace = state.workspace
 
-    WearScreen(title = workspace?.name ?: "Workspace", onBack = onBack) {
+    // WearScreen 的 content 是普通 DSL builder（非 @Composable），字符串要先在外部取好。
+    val fallbackTitle = stringResource(R.string.wear_ws_title)
+    val loadingLabel = stringResource(R.string.wear_ws_loading)
+    val infoSection = stringResource(R.string.wear_ws_section_info)
+    val rootLabel = stringResource(R.string.wear_ws_info_root)
+    val kindLabel = stringResource(R.string.wear_ws_info_kind)
+    val shellLabel = stringResource(R.string.wear_ws_info_shell)
+    val sshKind = stringResource(R.string.wear_ws_kind_ssh)
+    val localProotKind = stringResource(R.string.wear_ws_kind_local_proot)
+    val shellStatusValue = shellStatusText(workspace?.shellStatus.orEmpty())
+    val installHint = stringResource(R.string.wear_ws_install_hint)
+    val installingLabel = stringResource(R.string.wear_ws_install_installing)
+    val reinstallLabel = stringResource(R.string.wear_ws_reinstall_rootfs)
+    val installLabel = stringResource(R.string.wear_ws_install_rootfs)
+    val openConsoleLabel = stringResource(R.string.wear_ws_open_console)
+    val openSshConsoleLabel = stringResource(R.string.wear_ws_open_ssh_console)
+    val compatibilitySection = stringResource(R.string.wear_ws_section_compatibility)
+    val compatibilityTitle = stringResource(R.string.wear_ws_compat_title)
+    val compatibilitySubtitle = stringResource(R.string.wear_ws_compat_subtitle)
+    val defaultRootfsHint = stringResource(R.string.wear_ws_default_rootfs_hint)
+    val rootfsUrlTitle = stringResource(R.string.wear_ws_rootfs_url_title)
+    val rootfsUrlPlaceholder = stringResource(R.string.wear_ws_rootfs_url_placeholder)
+    val progress = installProgress
+    val progressLabel = if (progress != null) {
+        progressText(progress.stage, progress.bytesRead, progress.totalBytes)
+    } else {
+        null
+    }
+
+    WearScreen(title = workspace?.name ?: fallbackTitle, onBack = onBack) {
         if (workspace == null) {
-            textItem("Loading workspace…")
+            textItem(loadingLabel)
             return@WearScreen
         }
 
-        section("Info")
-        infoItem("Root", workspace.root)
-        infoItem("Kind", if (workspace.isSsh()) "SSH" else "Local · PRoot")
-        infoItem("Shell", shellStatusText(workspace.shellStatus))
+        section(infoSection)
+        infoItem(rootLabel, workspace.root)
+        infoItem(kindLabel, if (workspace.isSsh()) sshKind else localProotKind)
+        infoItem(shellLabel, shellStatusValue)
         val rootfsCapable = workspace.capabilities().rootfs
         if (rootfsCapable) {
             val installing = installProgress != null ||
                 workspace.shellStatus == WorkspaceShellStatus.INSTALLING.name
-            val progress = installProgress
-            if (progress != null) {
-                textItem(progressText(progress.stage, progress.bytesRead, progress.totalBytes))
+            if (progressLabel != null) {
+                textItem(progressLabel)
             }
             if (installing) {
-                textItem("Installing rootfs — keep the app open. Other features are unaffected.")
+                textItem(installHint)
             }
             buttonItem(
                 label = when {
-                    installing -> "Installing…"
-                    workspace.shellStatus == WorkspaceShellStatus.READY.name -> "Reinstall rootfs"
-                    else -> "Install rootfs"
+                    installing -> installingLabel
+                    workspace.shellStatus == WorkspaceShellStatus.READY.name -> reinstallLabel
+                    else -> installLabel
                 },
                 icon = WearIcons.Download,
                 enabled = !installing,
             ) { showInstallUrl = true }
-            buttonItem(label = "Open console", icon = WearIcons.Play) {
+            buttonItem(label = openConsoleLabel, icon = WearIcons.Play) {
                 onOpenTerminal(workspaceId)
             }
         }
         if (workspace.isSsh()) {
-            buttonItem(label = "Open SSH console", icon = WearIcons.Play) {
+            buttonItem(label = openSshConsoleLabel, icon = WearIcons.Play) {
                 onOpenTerminal(workspaceId)
             }
         }
-        section("Compatibility")
+        section(compatibilitySection)
         toggleItem(
-            title = "Shell compatibility mode",
-            subtitle = "Disable PRoot seccomp acceleration for broken kernels/devices",
+            title = compatibilityTitle,
+            subtitle = compatibilitySubtitle,
             checked = workspace.shellCompatibilityMode,
             onCheckedChange = vm::setShellCompatibilityMode,
         )
         textItem(
-            "Default rootfs: Alpine minirootfs for this ABI (small, ~3-4MB download). Tap Install rootfs to use it, or enter any tar/tar.gz URL.",
+            defaultRootfsHint,
             small = true,
             muted = true,
         )
@@ -105,10 +135,10 @@ fun WearWorkspaceDetailPage(
     if (showInstallUrl) {
         WearInputDialog(
             visible = true,
-            title = "Rootfs archive URL",
+            title = rootfsUrlTitle,
             initialValue = defaultRootfsUrl(),
             singleLine = false,
-            placeholder = "https://…/ubuntu-base-…tar.gz",
+            placeholder = rootfsUrlPlaceholder,
             onConfirm = { url ->
                 showInstallUrl = false
                 if (url.isNotBlank()) vm.installRootfs(url.trim())
@@ -118,21 +148,27 @@ fun WearWorkspaceDetailPage(
     }
 }
 
+@Composable
 private fun shellStatusText(status: String): String = when (status) {
-    WorkspaceShellStatus.READY.name -> "ready"
-    WorkspaceShellStatus.INSTALLING.name -> "installing"
-    WorkspaceShellStatus.BROKEN.name -> "broken"
-    else -> "not installed"
+    WorkspaceShellStatus.READY.name -> stringResource(R.string.wear_ws_status_ready)
+    WorkspaceShellStatus.INSTALLING.name -> stringResource(R.string.wear_ws_status_installing)
+    WorkspaceShellStatus.BROKEN.name -> stringResource(R.string.wear_ws_status_broken)
+    else -> stringResource(R.string.wear_ws_status_not_installed)
 }
 
+@Composable
 private fun progressText(stage: RootfsInstallStage, bytesRead: Long, totalBytes: Long?): String = when (stage) {
     RootfsInstallStage.DOWNLOADING -> if (totalBytes != null && totalBytes > 0) {
-        "Downloading ${bytesRead / 1024 / 1024}MB / ${totalBytes / 1024 / 1024}MB"
+        stringResource(
+            R.string.wear_ws_downloading_total,
+            bytesRead / 1024 / 1024,
+            totalBytes / 1024 / 1024,
+        )
     } else {
-        "Downloading ${bytesRead / 1024 / 1024}MB"
+        stringResource(R.string.wear_ws_downloading, bytesRead / 1024 / 1024)
     }
-    RootfsInstallStage.EXTRACTING -> "Extracting rootfs…"
-    RootfsInstallStage.INSTALLED -> "Rootfs installed"
+    RootfsInstallStage.EXTRACTING -> stringResource(R.string.wear_ws_extracting)
+    RootfsInstallStage.INSTALLED -> stringResource(R.string.wear_ws_rootfs_installed)
 }
 
 /**

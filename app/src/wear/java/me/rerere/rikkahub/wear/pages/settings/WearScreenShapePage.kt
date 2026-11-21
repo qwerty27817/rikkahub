@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.wear.pages.settings
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.wear.components.WearScreen
 import me.rerere.rikkahub.wear.components.section
 import me.rerere.rikkahub.wear.components.shapeModeSetting
@@ -17,20 +19,44 @@ fun WearScreenShapePage(onBack: () -> Unit) {
     val state = LocalScreenShapeState.current
     val controller = LocalScreenShapeController.current
 
-    WearScreen(title = "Screen shape", onBack = onBack) {
+    // WearScreen 的 content 是普通 DSL builder（非 @Composable），先算好所有字符串。
+    val title = stringResource(R.string.wear_common_screen_shape)
+    val modeTitle = stringResource(R.string.wear_set_mode)
+    val shapeAutoLabel = stringResource(R.string.wear_common_auto)
+    val shapeDetectedFormat = stringResource(R.string.wear_common_detected_auto)
+    val shapeForceSquareLabel = stringResource(R.string.wear_common_force_square)
+    val shapeForceRoundLabel = stringResource(R.string.wear_common_force_round)
+    val shapeDisplayLabel = stringResource(R.string.wear_common_display)
+    val diagnosticsSection = stringResource(R.string.wear_set_diagnostics)
+    val autoDescription = stringResource(R.string.wear_set_shape_auto_desc)
+    val debugLine = stringResource(
+        R.string.wear_set_shape_debug_line,
+        state.shape.name.lowercase(),
+        state.source.name.lowercase(),
+        state.widthDp,
+        state.heightDp,
+        state.isWatch,
+        state.systemRound,
+        state.displayRound,
+    )
+
+    WearScreen(title = title, onBack = onBack) {
         if (controller != null) {
-            shapeModeSetting(controller = controller, state = state, title = "Mode")
+            shapeModeSetting(
+                controller = controller,
+                state = state,
+                title = modeTitle,
+                autoLabel = shapeAutoLabel,
+                autoDetectedFormat = shapeDetectedFormat,
+                forceSquareLabel = shapeForceSquareLabel,
+                forceRoundLabel = shapeForceRoundLabel,
+                displayLabel = shapeDisplayLabel,
+            )
         }
-        section("Diagnostics")
+        section(diagnosticsSection)
+        textItem(text = autoDescription)
         textItem(
-            text = "Auto uses the system round flag when the device reports one. On non-WearOS watches " +
-                "that do not expose it, a square-aspect watch screen at or below 240dp is treated as round. " +
-                "Manual force always wins and is stored in SharedPreferences.",
-        )
-        textItem(
-            text = "Detected: ${state.shape.name.lowercase()} · source=${state.source.name.lowercase()} · " +
-                "${state.widthDp}x${state.heightDp}dp · watch=${state.isWatch} · " +
-                "systemRound=${state.systemRound} · displayRound=${state.displayRound}",
+            text = debugLine,
             small = true,
             muted = true,
         )

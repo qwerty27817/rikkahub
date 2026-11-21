@@ -7,8 +7,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -39,6 +41,9 @@ fun WearSearchSettingsPage(
     val store: SettingsStore = koinInject()
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
+    val activeUpdated = stringResource(R.string.wear_svc_search_active_updated)
+    val deletedMessage = stringResource(R.string.wear_svc_search_deleted)
+    val addProviderLabel = stringResource(R.string.wear_svc_search_add)
 
     var editingId by remember { mutableStateOf<Uuid?>(null) }
     var showAddProvider by remember { mutableStateOf(false) }
@@ -75,7 +80,7 @@ fun WearSearchSettingsPage(
                         )
                     }
                 }
-                toaster.show("Active search provider updated", ToastType.Success)
+                toaster.show(activeUpdated, ToastType.Success)
             },
             onDelete = {
                 scope.launch {
@@ -95,7 +100,7 @@ fun WearSearchSettingsPage(
                     }
                 }
                 editingId = null
-                toaster.show("Search provider deleted", ToastType.Success)
+                toaster.show(deletedMessage, ToastType.Success)
             },
         )
         return
@@ -104,34 +109,42 @@ fun WearSearchSettingsPage(
     val titles = numberedTitles(services.map { it.displayName })
     val activeTitle = services.getOrNull(settings.searchServiceSelected)?.displayName
 
-    WearScreen(title = "Search", onBack = onBack) {
+    val noneLabel = stringResource(R.string.wear_svc_none)
+    WearScreen(title = stringResource(R.string.wear_svc_search_title), onBack = onBack) {
         if (services.isEmpty()) {
-            textItem("No search providers configured. Add one to enable web search.")
+            textItem(stringResource(R.string.wear_svc_search_empty))
         }
         services.forEachIndexed { index, service ->
             navItem(
                 title = titles[index],
                 subtitle = buildProviderSubtitle(service, index == settings.searchServiceSelected),
                 icon = WearIcons.Search,
-                trailingText = if (index == settings.searchServiceSelected) "Active" else null,
+                trailingText = if (index == settings.searchServiceSelected) {
+                    stringResource(R.string.wear_svc_active)
+                } else {
+                    null
+                },
                 onClick = { editingId = service.id },
             )
         }
-        buttonItem(label = "Add search provider", icon = WearIcons.Add, tonal = true) {
+        buttonItem(label = addProviderLabel, icon = WearIcons.Add, tonal = true) {
             showAddProvider = true
         }
 
-        section("Common options")
-        infoItem("Result size", "${settings.searchCommonOptions.resultSize} results per search")
-        infoItem("Active provider", activeTitle ?: "None")
-        buttonItem(label = "Change result size", icon = WearIcons.Settings, tonal = true) {
+        section(stringResource(R.string.wear_svc_search_common_options))
+        infoItem(
+            stringResource(R.string.wear_svc_search_result_size),
+            stringResource(R.string.wear_svc_search_results_per_search, settings.searchCommonOptions.resultSize),
+        )
+        infoItem(stringResource(R.string.wear_svc_search_active_provider), activeTitle ?: noneLabel)
+        buttonItem(label = stringResource(R.string.wear_svc_search_change_result_size), icon = WearIcons.Settings, tonal = true) {
             editResultSize = true
         }
     }
 
     WearOptionDialog(
         visible = showAddProvider,
-        title = "Add search provider",
+        title = addProviderLabel,
         options = typeEntries.map { it.value },
         onSelect = { index ->
             val type = typeEntries.getOrNull(index)
@@ -151,9 +164,10 @@ fun WearSearchSettingsPage(
     )
 
     if (editResultSize) {
+        val resultSizeError = stringResource(R.string.wear_svc_search_result_size_error)
         WearInputDialog(
             visible = true,
-            title = "Results per search",
+            title = stringResource(R.string.wear_svc_search_results_per_search_title),
             initialValue = settings.searchCommonOptions.resultSize.toString(),
             label = "1 - 50",
             keyboardType = KeyboardType.Number,
@@ -167,7 +181,7 @@ fun WearSearchSettingsPage(
                         }
                     }
                 } else {
-                    toaster.show("Result size must be 1 - 50", ToastType.Error)
+                    toaster.show(resultSizeError, ToastType.Error)
                 }
             },
             onDismiss = { editResultSize = false },
@@ -213,11 +227,19 @@ private fun SearchServiceDetail(
 
     BackHandler(onBack = onBack)
 
-    WearScreen(title = service.displayName.ifBlank { "Search provider" }, onBack = onBack) {
-        infoItem("Type", service.displayName)
+    val searchProviderLabel = stringResource(R.string.wear_svc_search_provider)
+    val providerTitle = service.displayName.ifBlank { searchProviderLabel }
+    val notSetLabel = stringResource(R.string.wear_svc_not_set)
+    val currentlyActive = stringResource(R.string.wear_svc_currently_active)
+    val tapToActivate = stringResource(R.string.wear_svc_tap_to_activate)
+    val defaultLabel = stringResource(R.string.wear_svc_default)
+    val autoLabel = stringResource(R.string.wear_svc_auto)
+    val customJsLabel = stringResource(R.string.wear_svc_custom_js)
+    WearScreen(title = providerTitle, onBack = onBack) {
+        infoItem(stringResource(R.string.wear_svc_type), service.displayName)
         radioItem(
-            title = "Use for web search",
-            subtitle = if (active) "Currently active" else "Tap to make active",
+            title = stringResource(R.string.wear_svc_search_use_for_web),
+            subtitle = if (active) currentlyActive else tapToActivate,
             selected = active,
             onSelect = onSetActive,
         )
@@ -225,8 +247,8 @@ private fun SearchServiceDetail(
         val apiKey = service.apiKeyOrNull()
         if (apiKey != null) {
             navItem(
-                title = "API key",
-                subtitle = if (apiKey.isBlank()) "Not set" else maskSecret(apiKey),
+                title = stringResource(R.string.wear_svc_api_key),
+                subtitle = if (apiKey.isBlank()) notSetLabel else maskSecret(apiKey),
                 icon = WearIcons.Settings,
                 onClick = { editField = SearchField.API_KEY },
             )
@@ -235,7 +257,7 @@ private fun SearchServiceDetail(
         if (endpoint != null) {
             navItem(
                 title = service.endpointLabel(),
-                subtitle = endpoint.ifBlank { "Not set" },
+                subtitle = endpoint.ifBlank { notSetLabel },
                 icon = WearIcons.Web,
                 onClick = { editField = SearchField.ENDPOINT },
             )
@@ -244,13 +266,13 @@ private fun SearchServiceDetail(
         when (service) {
             is SearchServiceOptions.TavilyOptions -> {
                 toggleItem(
-                    title = "Include answer",
+                    title = stringResource(R.string.wear_svc_tavily_include_answer),
                     checked = service.includeAnswer,
-                    subtitle = "Ask Tavily for an answer summary",
+                    subtitle = stringResource(R.string.wear_svc_tavily_include_answer_desc),
                     onCheckedChange = { onUpdate(service.copy(includeAnswer = it)) },
                 )
                 navItem(
-                    title = "Search depth",
+                    title = stringResource(R.string.wear_svc_search_depth),
                     subtitle = service.depth,
                     icon = WearIcons.Search,
                     onClick = { choice = SearchChoice.TAVILY_DEPTH },
@@ -259,23 +281,27 @@ private fun SearchServiceDetail(
 
             is SearchServiceOptions.BochaOptions -> {
                 toggleItem(
-                    title = "Summary",
+                    title = stringResource(R.string.wear_svc_summary),
                     checked = service.summary,
                     onCheckedChange = { onUpdate(service.copy(summary = it)) },
                 )
             }
 
             is SearchServiceOptions.LinkUpOptions -> {
-                navItem("Depth", service.depth, WearIcons.Search) { choice = SearchChoice.LINKUP_DEPTH }
+                navItem(stringResource(R.string.wear_svc_depth), service.depth, WearIcons.Search) {
+                    choice = SearchChoice.LINKUP_DEPTH
+                }
             }
 
             is SearchServiceOptions.RikkaHubOptions -> {
-                navItem("Depth", service.depth, WearIcons.Search) { choice = SearchChoice.RIKKAHUB_DEPTH }
+                navItem(stringResource(R.string.wear_svc_depth), service.depth, WearIcons.Search) {
+                    choice = SearchChoice.RIKKAHUB_DEPTH
+                }
             }
 
             is SearchServiceOptions.DoubaoOptions -> {
                 navItem(
-                    title = "Mode",
+                    title = stringResource(R.string.wear_svc_mode),
                     subtitle = service.mode.name.lowercase(),
                     icon = WearIcons.Search,
                     onClick = { choice = SearchChoice.DOUBAO_MODE },
@@ -283,64 +309,89 @@ private fun SearchServiceDetail(
             }
 
             is SearchServiceOptions.SearXNGOptions -> {
-                navItem("Engines", service.engines.ifBlank { "Default" }, WearIcons.Search) {
+                navItem(
+                    stringResource(R.string.wear_svc_engines),
+                    service.engines.ifBlank { defaultLabel },
+                    WearIcons.Search,
+                ) {
                     editField = SearchField.ENGINES
                 }
-                navItem("Language", service.language.ifBlank { "Auto" }, WearIcons.Translate) {
+                navItem(
+                    stringResource(R.string.wear_svc_language),
+                    service.language.ifBlank { autoLabel },
+                    WearIcons.Translate,
+                ) {
                     editField = SearchField.LANGUAGE
                 }
-                navItem("Username", service.username.ifBlank { "Not set" }, WearIcons.Settings) {
+                navItem(
+                    stringResource(R.string.wear_svc_username),
+                    service.username.ifBlank { notSetLabel },
+                    WearIcons.Settings,
+                ) {
                     editField = SearchField.USERNAME
                 }
-                navItem("Password", maskSecret(service.password), WearIcons.Settings) {
+                navItem(
+                    stringResource(R.string.wear_svc_password),
+                    maskSecret(service.password),
+                    WearIcons.Settings,
+                ) {
                     editField = SearchField.PASSWORD
                 }
             }
 
             is SearchServiceOptions.JinaOptions -> {
-                navItem("Scrape URL", service.scrapeUrl, WearIcons.Web) {
+                navItem(stringResource(R.string.wear_svc_scrape_url), service.scrapeUrl, WearIcons.Web) {
                     editField = SearchField.SCRAPE_URL
                 }
             }
 
             is SearchServiceOptions.GrokOptions -> {
-                navItem("Model", service.model, WearIcons.Cpu) {
+                navItem(stringResource(R.string.wear_svc_model), service.model, WearIcons.Cpu) {
                     editField = SearchField.GROK_MODEL
                 }
-                textItem("System prompt is edited on the phone app.", small = true, muted = true)
+                textItem(stringResource(R.string.wear_svc_grok_prompt_hint), small = true, muted = true)
             }
 
             is SearchServiceOptions.PerplexityOptions -> {
                 navItem(
-                    title = "Max tokens",
-                    subtitle = service.maxTokens?.toString() ?: "Default",
+                    title = stringResource(R.string.wear_svc_max_tokens),
+                    subtitle = service.maxTokens?.toString() ?: defaultLabel,
                     icon = WearIcons.Settings,
                     onClick = { editField = SearchField.MAX_TOKENS },
                 )
                 navItem(
-                    title = "Max tokens per page",
-                    subtitle = service.maxTokensPerPage?.toString() ?: "Default",
+                    title = stringResource(R.string.wear_svc_max_tokens_per_page),
+                    subtitle = service.maxTokensPerPage?.toString() ?: defaultLabel,
                     icon = WearIcons.Settings,
                     onClick = { editField = SearchField.MAX_TOKENS_PER_PAGE },
                 )
             }
 
             is SearchServiceOptions.CustomJsOptions -> {
-                navItem("Name", service.name.ifBlank { "Custom JS" }, WearIcons.Settings) {
+                navItem(
+                    stringResource(R.string.wear_svc_name),
+                    service.name.ifBlank { customJsLabel },
+                    WearIcons.Settings,
+                ) {
                     editField = SearchField.CUSTOM_NAME
                 }
-                textItem("Search / scrape scripts are edited on the phone app.", small = true, muted = true)
+                textItem(stringResource(R.string.wear_svc_custom_js_hint), small = true, muted = true)
             }
 
             is SearchServiceOptions.BingLocalOptions -> {
-                textItem("Bing (local) needs no configuration.", maxLines = 2, small = true, muted = true)
+                textItem(
+                    stringResource(R.string.wear_svc_bing_local_hint),
+                    maxLines = 2,
+                    small = true,
+                    muted = true,
+                )
             }
 
             else -> Unit
         }
 
         if (canDelete) {
-            buttonItem(label = "Delete provider", icon = WearIcons.Delete, tonal = true) {
+            buttonItem(label = stringResource(R.string.wear_svc_delete_provider), icon = WearIcons.Delete, tonal = true) {
                 confirmDelete = true
             }
         }
@@ -387,9 +438,9 @@ private fun SearchServiceDetail(
 
     WearConfirmDialog(
         visible = confirmDelete,
-        title = "Delete provider?",
-        message = "The provider configuration will be removed.",
-        confirmLabel = "Delete",
+        title = stringResource(R.string.wear_svc_delete_provider_title),
+        message = stringResource(R.string.wear_svc_search_delete_message),
+        confirmLabel = stringResource(R.string.wear_common_delete),
         danger = true,
         onConfirm = {
             confirmDelete = false
@@ -399,26 +450,30 @@ private fun SearchServiceDetail(
     )
 }
 
+@Composable
 private fun buildProviderSubtitle(service: SearchServiceOptions, active: Boolean): String {
     val apiKey = service.apiKeyOrNull()
     val state = when {
-        apiKey == null -> "No credentials required"
-        apiKey.isBlank() -> "API key missing"
-        else -> "Configured"
+        apiKey == null -> stringResource(R.string.wear_svc_no_credentials_required)
+        apiKey.isBlank() -> stringResource(R.string.wear_svc_api_key_missing)
+        else -> stringResource(R.string.wear_svc_configured)
     }
-    return if (active) "$state · active" else state
+    return if (active) stringResource(R.string.wear_svc_active_state, state) else state
 }
 
+@Composable
 private fun maskSecret(value: String): String = when {
-    value.isBlank() -> "Not set"
+    value.isBlank() -> stringResource(R.string.wear_svc_not_set)
     value.length <= 4 -> "••••"
     else -> "••••${value.takeLast(4)}"
 }
 
+@Composable
 private fun numberedTitles(names: List<String>): List<String> {
+    val unnamed = stringResource(R.string.wear_svc_unnamed_provider)
     val seen = mutableMapOf<String, Int>()
     return names.map { name ->
-        val label = name.ifBlank { "Unnamed provider" }
+        val label = name.ifBlank { unnamed }
         val count = (seen[label] ?: 0) + 1
         seen[label] = count
         if (count == 1) label else "$label #$count"
@@ -476,11 +531,12 @@ private fun SearchServiceOptions.endpointOrNull(): String? = when (this) {
     else -> null
 }
 
+@Composable
 private fun SearchServiceOptions.endpointLabel(): String = when (this) {
-    is SearchServiceOptions.SearXNGOptions -> "SearXNG URL"
-    is SearchServiceOptions.JinaOptions -> "Search URL"
-    is SearchServiceOptions.GrokOptions -> "Responses URL"
-    else -> "Endpoint"
+    is SearchServiceOptions.SearXNGOptions -> stringResource(R.string.wear_svc_searxng_url)
+    is SearchServiceOptions.JinaOptions -> stringResource(R.string.wear_svc_search_url)
+    is SearchServiceOptions.GrokOptions -> stringResource(R.string.wear_svc_responses_url)
+    else -> stringResource(R.string.wear_svc_endpoint)
 }
 
 private fun SearchServiceOptions.withEndpoint(value: String): SearchServiceOptions = when (this) {
@@ -490,19 +546,20 @@ private fun SearchServiceOptions.withEndpoint(value: String): SearchServiceOptio
     else -> this
 }
 
+@Composable
 private fun fieldTitle(field: SearchField): String = when (field) {
-    SearchField.API_KEY -> "API key"
-    SearchField.ENDPOINT -> "Endpoint"
-    SearchField.SEARCH_URL -> "Search URL"
-    SearchField.SCRAPE_URL -> "Scrape URL"
-    SearchField.ENGINES -> "Engines"
-    SearchField.LANGUAGE -> "Language"
-    SearchField.USERNAME -> "Username"
-    SearchField.PASSWORD -> "Password"
-    SearchField.GROK_MODEL -> "Model"
-    SearchField.MAX_TOKENS -> "Max tokens"
-    SearchField.MAX_TOKENS_PER_PAGE -> "Max tokens per page"
-    SearchField.CUSTOM_NAME -> "Provider name"
+    SearchField.API_KEY -> stringResource(R.string.wear_svc_api_key)
+    SearchField.ENDPOINT -> stringResource(R.string.wear_svc_endpoint)
+    SearchField.SEARCH_URL -> stringResource(R.string.wear_svc_search_url)
+    SearchField.SCRAPE_URL -> stringResource(R.string.wear_svc_scrape_url)
+    SearchField.ENGINES -> stringResource(R.string.wear_svc_engines)
+    SearchField.LANGUAGE -> stringResource(R.string.wear_svc_language)
+    SearchField.USERNAME -> stringResource(R.string.wear_svc_username)
+    SearchField.PASSWORD -> stringResource(R.string.wear_svc_password)
+    SearchField.GROK_MODEL -> stringResource(R.string.wear_svc_model)
+    SearchField.MAX_TOKENS -> stringResource(R.string.wear_svc_max_tokens)
+    SearchField.MAX_TOKENS_PER_PAGE -> stringResource(R.string.wear_svc_max_tokens_per_page)
+    SearchField.CUSTOM_NAME -> stringResource(R.string.wear_svc_provider_name)
 }
 
 private fun SearchServiceOptions.fieldValue(field: SearchField): String = when (field) {
@@ -550,11 +607,12 @@ private fun SearchServiceOptions.applyField(field: SearchField, value: String): 
     SearchField.CUSTOM_NAME -> if (this is SearchServiceOptions.CustomJsOptions) copy(name = value) else this
 }
 
+@Composable
 private fun choiceTitle(choice: SearchChoice): String = when (choice) {
-    SearchChoice.TAVILY_DEPTH -> "Search depth"
-    SearchChoice.LINKUP_DEPTH -> "Depth"
-    SearchChoice.RIKKAHUB_DEPTH -> "Depth"
-    SearchChoice.DOUBAO_MODE -> "Mode"
+    SearchChoice.TAVILY_DEPTH -> stringResource(R.string.wear_svc_search_depth)
+    SearchChoice.LINKUP_DEPTH -> stringResource(R.string.wear_svc_depth)
+    SearchChoice.RIKKAHUB_DEPTH -> stringResource(R.string.wear_svc_depth)
+    SearchChoice.DOUBAO_MODE -> stringResource(R.string.wear_svc_mode)
 }
 
 private fun choiceOptions(choice: SearchChoice): List<String> = when (choice) {

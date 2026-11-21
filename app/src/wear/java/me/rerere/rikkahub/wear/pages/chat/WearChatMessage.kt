@@ -20,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,6 +30,7 @@ import coil3.compose.AsyncImage
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.wear.WearIcons
@@ -75,7 +77,7 @@ fun WearChatMessage(
                 IconButton(onClick = { onBranch(node.selectIndex - 1) }, enabled = node.selectIndex > 0) {
                     Icon(
                         imageVector = WearIcons.Back,
-                        contentDescription = "Previous branch",
+                        contentDescription = stringResource(R.string.wear_chat_previous_branch),
                         tint = WearMaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -90,7 +92,7 @@ fun WearChatMessage(
                 ) {
                     Icon(
                         imageVector = WearIcons.Forward,
-                        contentDescription = "Next branch",
+                        contentDescription = stringResource(R.string.wear_chat_next_branch),
                         tint = WearMaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -98,7 +100,7 @@ fun WearChatMessage(
             IconButton(onClick = { onAction(message) }) {
                 Icon(
                     imageVector = WearIcons.More,
-                    contentDescription = "Message actions",
+                    contentDescription = stringResource(R.string.wear_chat_message_actions),
                     tint = WearMaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -147,11 +149,14 @@ fun WearChatMessage(
                         is UIMessagePart.Document -> {
                             SmallLine("📄 ${part.fileName}")
                         }
-                        is UIMessagePart.Video -> SmallLine("🎬 Video attachment")
-                        is UIMessagePart.Audio -> SmallLine("🎵 Audio attachment")
+                        is UIMessagePart.Video ->
+                            SmallLine("🎬 ${stringResource(R.string.wear_chat_video_attachment)}")
+                        is UIMessagePart.Audio ->
+                            SmallLine("🎵 ${stringResource(R.string.wear_chat_audio_attachment)}")
                         is UIMessagePart.ServerTool -> SmallLine("🔎 ${part.toolName}")
                         is UIMessagePart.ToolCall -> SmallLine("🔧 ${part.toolName}")
-                        is UIMessagePart.ToolResult -> SmallLine("🔧 ${part.toolName} result")
+                        is UIMessagePart.ToolResult ->
+                            SmallLine("🔧 ${stringResource(R.string.wear_chat_tool_result, part.toolName)}")
                         else -> SmallLine("[${part::class.simpleName}]")
                     }
                 }
@@ -173,7 +178,11 @@ private fun ReasoningBlock(reasoning: String) {
     var expanded by remember { mutableStateOf(false) }
     Column {
         Text(
-            text = if (expanded) "Thinking ▾" else "Thinking ▸",
+            text = if (expanded) {
+                "${stringResource(R.string.wear_chat_thinking)} ▾"
+            } else {
+                "${stringResource(R.string.wear_chat_thinking)} ▸"
+            },
             style = WearMaterialTheme.typography.labelSmall,
             color = WearMaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
@@ -202,11 +211,15 @@ private fun ToolBlock(
         SmallLine("🔧 $name")
         when {
             pending -> Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                androidx.wear.compose.material3.Button(onClick = onApprove) { Text("Allow") }
-                androidx.wear.compose.material3.Button(onClick = onDeny) { Text("Deny") }
+                androidx.wear.compose.material3.Button(onClick = onApprove) {
+                    Text(stringResource(R.string.wear_chat_allow))
+                }
+                androidx.wear.compose.material3.Button(onClick = onDeny) {
+                    Text(stringResource(R.string.wear_chat_deny))
+                }
             }
             executed -> Text(
-                text = "Done",
+                text = stringResource(R.string.wear_chat_done),
                 style = WearMaterialTheme.typography.labelSmall,
                 color = WearMaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -225,9 +238,10 @@ private fun SmallLine(text: String) {
     )
 }
 
+@Composable
 private fun roleLabel(role: MessageRole): String = when (role) {
-    MessageRole.USER -> "You"
-    MessageRole.ASSISTANT -> "Assistant"
-    MessageRole.SYSTEM -> "System"
-    MessageRole.TOOL -> "Tool"
+    MessageRole.USER -> stringResource(R.string.wear_chat_role_user)
+    MessageRole.ASSISTANT -> stringResource(R.string.wear_chat_role_assistant)
+    MessageRole.SYSTEM -> stringResource(R.string.wear_chat_role_system)
+    MessageRole.TOOL -> stringResource(R.string.wear_chat_role_tool)
 }

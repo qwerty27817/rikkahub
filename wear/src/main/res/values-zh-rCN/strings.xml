@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="wear_back">返回</string>
+  <string name="wear_cancel">取消</string>
+  <string name="wear_close">关闭</string>
+  <string name="wear_retry">重试</string>
+  <string name="wear_something_wrong">出了点问题</string>
+</resources>

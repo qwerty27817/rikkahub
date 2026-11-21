@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="wear_common_back">返回</string>
+  <string name="wear_common_cancel">取消</string>
+  <string name="wear_common_close">关闭</string>
+  <string name="wear_common_ok">确定</string>
+  <string name="wear_common_delete">删除</string>
+  <string name="wear_common_retry">重试</string>
+  <string name="wear_common_something_wrong">出了点问题</string>
+  <string name="wear_common_continue">继续</string>
+  <string name="wear_common_exit">退出</string>
+
+  <string name="wear_common_screen_shape">屏幕形态</string>
+  <string name="wear_common_auto">自动</string>
+  <string name="wear_common_force_square">强制方形</string>
+  <string name="wear_common_force_round">强制圆形</string>
+  <string name="wear_common_display">显示</string>
+  <string name="wear_common_square">方形</string>
+  <string name="wear_common_round">圆形</string>
+  <string name="wear_common_detected_auto">检测到：%1$s · %2$s</string>
+
+  <string name="wear_common_crash_title">RikkaHub 上次异常退出</string>
+  <string name="wear_common_crash_message">你可以继续使用（重新开始），或关闭应用。下面的堆栈保留用于诊断。</string>
+  <string name="wear_common_crash_no_trace">没有记录到堆栈信息。</string>
+</resources>

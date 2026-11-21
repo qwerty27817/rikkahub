@@ -2,7 +2,9 @@ package me.rerere.rikkahub.wear.pages.home
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.model.Conversation
@@ -33,14 +35,30 @@ fun WearHomePage(
     val vm: HistoryVM = koinViewModel()
     val conversations by vm.conversations.collectAsStateWithLifecycle()
 
+    // WearScreen 的 content 是普通 DSL builder（非 @Composable），先算好所有字符串。
+    val appName = stringResource(R.string.app_name)
+    val assistantFallback = stringResource(R.string.wear_set_assistant)
+    val setUpModel = stringResource(R.string.wear_set_set_up_model)
+    val noChatModel = stringResource(R.string.wear_set_no_chat_model)
+    val newChat = stringResource(R.string.wear_set_new_chat)
+    val recentSection = stringResource(R.string.wear_set_recent)
+    val allConversations = stringResource(R.string.wear_set_all_conversations)
+    val conversationsTotal = stringResource(R.string.wear_set_conversations_total, conversations.size)
+    val moreSection = stringResource(R.string.wear_set_more)
+    val favoritesTitle = stringResource(R.string.wear_set_favorites)
+    val favoritesDesc = stringResource(R.string.wear_set_favorites_desc)
+    val settingsTitle = stringResource(R.string.wear_set_settings_title)
+    val settingsDesc = stringResource(R.string.wear_set_home_settings_desc)
+    val untitledChat = stringResource(R.string.wear_set_untitled_chat)
+
     WearScreen(
-        title = "RikkaHub",
-        subtitle = assistant.name.ifBlank { "Assistant" },
+        title = appName,
+        subtitle = assistant.name.ifBlank { assistantFallback },
     ) {
         if (chatModel == null) {
             navItem(
-                title = "Set up a model",
-                subtitle = "No chat model configured yet",
+                title = setUpModel,
+                subtitle = noChatModel,
                 icon = WearIcons.Cpu,
                 onClick = onOpenQuickStart,
             )
@@ -52,32 +70,32 @@ fun WearHomePage(
             )
         }
         buttonItem(
-            label = "New chat",
+            label = newChat,
             icon = WearIcons.Add,
             onClick = onNewChat,
         )
         if (conversations.isNotEmpty()) {
-            section("Recent")
+            section(recentSection)
             conversations.take(8).forEach { conversation ->
-                conversationItem(conversation) { onOpenChat(conversation.id) }
+                conversationItem(conversation, untitledChat) { onOpenChat(conversation.id) }
             }
             navItem(
-                title = "All conversations",
-                subtitle = "${conversations.size} total",
+                title = allConversations,
+                subtitle = conversationsTotal,
                 icon = WearIcons.History,
                 onClick = onOpenHistory,
             )
         }
-        section("More")
+        section(moreSection)
         navItem(
-            title = "Favorites",
-            subtitle = "Starred messages",
+            title = favoritesTitle,
+            subtitle = favoritesDesc,
             icon = WearIcons.Star,
             onClick = onOpenFavorites,
         )
         navItem(
-            title = "Settings",
-            subtitle = "Providers, models, screen shape",
+            title = settingsTitle,
+            subtitle = settingsDesc,
             icon = WearIcons.Settings,
             onClick = onOpenSettings,
         )
@@ -86,10 +104,11 @@ fun WearHomePage(
 
 private fun WearListScope.conversationItem(
     conversation: Conversation,
+    untitledChat: String,
     onClick: () -> Unit,
 ) {
     navItem(
-        title = conversation.title.ifBlank { "Untitled chat" },
+        title = conversation.title.ifBlank { untitledChat },
         subtitle = conversation.currentMessages.lastOrNull()
             ?.toText()
             ?.replace('\n', ' ')

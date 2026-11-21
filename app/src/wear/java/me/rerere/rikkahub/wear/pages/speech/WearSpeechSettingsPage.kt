@@ -7,8 +7,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.launch
 import me.rerere.asr.ASRProviderSetting
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DEFAULT_SYSTEM_TTS_ID
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -33,14 +35,18 @@ private enum class TtsField { NAME, API_KEY, BASE_URL }
 
 private enum class AsrField { NAME, API_KEY, ENDPOINT }
 
-private class TtsFactory(val label: String, val create: () -> TTSProviderSetting)
+private class TtsFactory(
+    val label: String,
+    val isSystem: Boolean = false,
+    val create: () -> TTSProviderSetting,
+)
 
 private class AsrFactory(val label: String, val create: () -> ASRProviderSetting)
 
 private val ttsFactories = listOf(
     TtsFactory("OpenAI") { TTSProviderSetting.OpenAI() },
     TtsFactory("Gemini") { TTSProviderSetting.Gemini() },
-    TtsFactory("System TTS") { TTSProviderSetting.SystemTTS() },
+    TtsFactory("System TTS", isSystem = true) { TTSProviderSetting.SystemTTS() },
     TtsFactory("MiniMax") { TTSProviderSetting.MiniMax() },
     TtsFactory("Qwen") { TTSProviderSetting.Qwen() },
     TtsFactory("Groq") { TTSProviderSetting.Groq() },
@@ -71,6 +77,10 @@ fun WearSpeechSettingsPage(
     val store: SettingsStore = koinInject()
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
+    val ttsUpdated = stringResource(R.string.wear_svc_tts_default_updated)
+    val ttsDeleted = stringResource(R.string.wear_svc_tts_deleted)
+    val asrUpdated = stringResource(R.string.wear_svc_asr_default_updated)
+    val asrDeleted = stringResource(R.string.wear_svc_asr_deleted)
 
     var editingTtsId by remember { mutableStateOf<Uuid?>(null) }
     var editingAsrId by remember { mutableStateOf<Uuid?>(null) }
@@ -102,7 +112,7 @@ fun WearSpeechSettingsPage(
                 scope.launch {
                     store.update { latest -> latest.copy(selectedTTSProviderId = editingTts.id) }
                 }
-                toaster.show("Default TTS provider updated", ToastType.Success)
+                toaster.show(ttsUpdated, ToastType.Success)
             },
             onDelete = {
                 scope.launch {
@@ -119,7 +129,7 @@ fun WearSpeechSettingsPage(
                     }
                 }
                 editingTtsId = null
-                toaster.show("TTS provider deleted", ToastType.Success)
+                toaster.show(ttsDeleted, ToastType.Success)
             },
         )
         return
@@ -145,7 +155,7 @@ fun WearSpeechSettingsPage(
                 scope.launch {
                     store.update { latest -> latest.copy(selectedASRProviderId = editingAsr.id) }
                 }
-                toaster.show("Default ASR provider updated", ToastType.Success)
+                toaster.show(asrUpdated, ToastType.Success)
             },
             onDelete = {
                 scope.launch {
@@ -162,59 +172,85 @@ fun WearSpeechSettingsPage(
                     }
                 }
                 editingAsrId = null
-                toaster.show("ASR provider deleted", ToastType.Success)
+                toaster.show(asrDeleted, ToastType.Success)
             },
         )
         return
     }
 
     // TTS 和 ASR 共用同一个列表，标题必须整体唯一，否则 LazyColumn 的 key 会冲突。
+    val systemTtsLabel = stringResource(R.string.wear_svc_system_tts)
     val allTitles = numberedTitles(
-        ttsProviders.map { it.name.ifBlank { it.typeLabel() } } +
+        ttsProviders.map { it.name.ifBlank { it.typeLabel(systemTtsLabel) } } +
             asrProviders.map { it.name.ifBlank { it.typeLabel() } }
     )
     val ttsTitles = allTitles.take(ttsProviders.size)
     val asrTitles = allTitles.drop(ttsProviders.size)
     val currentTts = ttsProviders.find { it.id == settings.selectedTTSProviderId }
     val currentAsr = asrProviders.find { it.id == settings.selectedASRProviderId }
-    val currentTtsLabel = currentTts?.let { it.name.ifBlank { it.typeLabel() } } ?: "System TTS"
-    val currentAsrLabel = currentAsr?.let { it.name.ifBlank { it.typeLabel() } } ?: "None"
+    val noneLabel = stringResource(R.string.wear_svc_none)
+    val addTtsLabel = stringResource(R.string.wear_svc_tts_add)
+    val addAsrLabel = stringResource(R.string.wear_svc_asr_add)
+    val activeLabel = stringResource(R.string.wear_svc_active)
+    val currentTtsLabel = if (currentTts != null) {
+        currentTts.name.ifBlank { currentTts.typeLabel(systemTtsLabel) }
+    } else {
+        systemTtsLabel
+    }
+    val currentAsrLabel = if (currentAsr != null) {
+        currentAsr.name.ifBlank { currentAsr.typeLabel() }
+    } else {
+        noneLabel
+    }
 
-    WearScreen(title = "Speech", onBack = onBack) {
-        section("Text to speech")
-        infoItem("Current TTS", currentTtsLabel)
+    WearScreen(title = stringResource(R.string.wear_svc_speech_title), onBack = onBack) {
+        section(stringResource(R.string.wear_svc_tts))
+        infoItem(stringResource(R.string.wear_svc_current_tts), currentTtsLabel)
         ttsProviders.forEachIndexed { index, provider ->
             navItem(
                 title = ttsTitles[index],
-                subtitle = provider.typeLabel() + (if (provider.id == settings.selectedTTSProviderId) " · active" else ""),
+                subtitle = if (provider.id == settings.selectedTTSProviderId) {
+                    stringResource(R.string.wear_svc_active_state, provider.typeLabel(systemTtsLabel))
+                } else {
+                    provider.typeLabel(systemTtsLabel)
+                },
                 icon = WearIcons.Volume,
-                trailingText = if (provider.id == settings.selectedTTSProviderId) "Active" else null,
+                trailingText = if (provider.id == settings.selectedTTSProviderId) activeLabel else null,
                 onClick = { editingTtsId = provider.id },
             )
         }
-        buttonItem(label = "Add TTS provider", icon = WearIcons.Add, tonal = true) {
+        buttonItem(label = addTtsLabel, icon = WearIcons.Add, tonal = true) {
             showAddTts = true
         }
 
-        section("Speech recognition")
-        infoItem("Current ASR", currentAsrLabel)
+        section(stringResource(R.string.wear_svc_asr))
+        infoItem(stringResource(R.string.wear_svc_current_asr), currentAsrLabel)
         if (asrProviders.isEmpty()) {
-            textItem("No ASR providers configured. Voice input stays disabled.", maxLines = 3, small = true, muted = true)
+            textItem(
+                text = stringResource(R.string.wear_svc_asr_empty),
+                maxLines = 3,
+                small = true,
+                muted = true,
+            )
         }
         asrProviders.forEachIndexed { index, provider ->
             navItem(
                 title = asrTitles[index],
-                subtitle = provider.typeLabel() + (if (provider.id == settings.selectedASRProviderId) " · active" else ""),
+                subtitle = if (provider.id == settings.selectedASRProviderId) {
+                    stringResource(R.string.wear_svc_active_state, provider.typeLabel())
+                } else {
+                    provider.typeLabel()
+                },
                 icon = WearIcons.Mic,
-                trailingText = if (provider.id == settings.selectedASRProviderId) "Active" else null,
+                trailingText = if (provider.id == settings.selectedASRProviderId) activeLabel else null,
                 onClick = { editingAsrId = provider.id },
             )
         }
-        buttonItem(label = "Add ASR provider", icon = WearIcons.Add, tonal = true) {
+        buttonItem(label = addAsrLabel, icon = WearIcons.Add, tonal = true) {
             showAddAsr = true
         }
         textItem(
-            text = "Voice, model and sampling options are edited on the phone app.",
+            text = stringResource(R.string.wear_svc_speech_phone_hint),
             maxLines = 3,
             small = true,
             muted = true,
@@ -224,8 +260,8 @@ fun WearSpeechSettingsPage(
     if (showAddTts) {
         WearOptionDialog(
             visible = true,
-            title = "Add TTS provider",
-            options = ttsFactories.map { it.label },
+            title = addTtsLabel,
+            options = ttsFactories.map { if (it.isSystem) systemTtsLabel else it.label },
             onSelect = { index ->
                 val factory = ttsFactories.getOrNull(index)
                 if (factory != null) {
@@ -244,7 +280,7 @@ fun WearSpeechSettingsPage(
     if (showAddAsr) {
         WearOptionDialog(
             visible = true,
-            title = "Add ASR provider",
+            title = addAsrLabel,
             options = asrFactories.map { it.label },
             onSelect = { index ->
                 val factory = asrFactories.getOrNull(index)
@@ -282,25 +318,31 @@ private fun TtsProviderDetail(
 
     BackHandler(onBack = onBack)
 
-    WearScreen(title = provider.name.ifBlank { provider.typeLabel() }, onBack = onBack) {
-        infoItem("Type", provider.typeLabel())
+    val systemTtsLabel = stringResource(R.string.wear_svc_system_tts)
+    val typeLabel = provider.typeLabel(systemTtsLabel)
+    val notSetLabel = stringResource(R.string.wear_svc_not_set)
+    val currentlyActive = stringResource(R.string.wear_svc_currently_active)
+    val tapToActivate = stringResource(R.string.wear_svc_tap_to_activate)
+
+    WearScreen(title = provider.name.ifBlank { typeLabel }, onBack = onBack) {
+        infoItem(stringResource(R.string.wear_svc_type), typeLabel)
         radioItem(
-            title = "Use for text to speech",
-            subtitle = if (selected) "Currently active" else "Tap to make active",
+            title = stringResource(R.string.wear_svc_tts_use),
+            subtitle = if (selected) currentlyActive else tapToActivate,
             selected = selected,
             onSelect = onSelect,
         )
         navItem(
-            title = "Name",
-            subtitle = provider.name.ifBlank { "Not set" },
+            title = stringResource(R.string.wear_svc_name),
+            subtitle = provider.name.ifBlank { notSetLabel },
             icon = WearIcons.Settings,
             onClick = { editField = TtsField.NAME },
         )
         val apiKey = provider.apiKeyOrNull()
         if (apiKey != null) {
             navItem(
-                title = "API key",
-                subtitle = if (apiKey.isBlank()) "Not set" else maskSecret(apiKey),
+                title = stringResource(R.string.wear_svc_api_key),
+                subtitle = if (apiKey.isBlank()) notSetLabel else maskSecret(apiKey),
                 icon = WearIcons.Cpu,
                 onClick = { editField = TtsField.API_KEY },
             )
@@ -308,17 +350,17 @@ private fun TtsProviderDetail(
         val baseUrl = provider.baseUrlOrNull()
         if (baseUrl != null) {
             navItem(
-                title = "Base URL",
+                title = stringResource(R.string.wear_svc_base_url),
                 subtitle = baseUrl,
                 icon = WearIcons.Web,
                 onClick = { editField = TtsField.BASE_URL },
             )
         }
         if (provider is TTSProviderSetting.SystemTTS) {
-            textItem("Uses the watch system speech engine.", maxLines = 2, small = true, muted = true)
+            textItem(stringResource(R.string.wear_svc_system_tts_hint), maxLines = 2, small = true, muted = true)
         }
         if (canDelete) {
-            buttonItem(label = "Delete provider", icon = WearIcons.Delete, tonal = true) {
+            buttonItem(label = stringResource(R.string.wear_svc_delete_provider), icon = WearIcons.Delete, tonal = true) {
                 confirmDelete = true
             }
         }
@@ -329,9 +371,9 @@ private fun TtsProviderDetail(
         WearInputDialog(
             visible = true,
             title = when (field) {
-                TtsField.NAME -> "Provider name"
-                TtsField.API_KEY -> "API key"
-                TtsField.BASE_URL -> "Base URL"
+                TtsField.NAME -> stringResource(R.string.wear_svc_provider_name)
+                TtsField.API_KEY -> stringResource(R.string.wear_svc_api_key)
+                TtsField.BASE_URL -> stringResource(R.string.wear_svc_base_url)
             },
             initialValue = when (field) {
                 TtsField.NAME -> provider.name
@@ -356,9 +398,9 @@ private fun TtsProviderDetail(
 
     WearConfirmDialog(
         visible = confirmDelete,
-        title = "Delete provider?",
-        message = provider.name.ifBlank { "This provider" } + " will be removed.",
-        confirmLabel = "Delete",
+        title = stringResource(R.string.wear_svc_delete_provider_title),
+        message = deleteProviderMessage(provider.name),
+        confirmLabel = stringResource(R.string.wear_common_delete),
         danger = true,
         onConfirm = {
             confirmDelete = false
@@ -382,39 +424,45 @@ private fun AsrProviderDetail(
 
     BackHandler(onBack = onBack)
 
-    WearScreen(title = provider.name.ifBlank { provider.typeLabel() }, onBack = onBack) {
-        infoItem("Type", provider.typeLabel())
+    val typeLabel = provider.typeLabel()
+    val endpointLabel = provider.endpointLabel()
+    val notSetLabel = stringResource(R.string.wear_svc_not_set)
+    val currentlyActive = stringResource(R.string.wear_svc_currently_active)
+    val tapToActivate = stringResource(R.string.wear_svc_tap_to_activate)
+
+    WearScreen(title = provider.name.ifBlank { typeLabel }, onBack = onBack) {
+        infoItem(stringResource(R.string.wear_svc_type), typeLabel)
         radioItem(
-            title = "Use for speech recognition",
-            subtitle = if (selected) "Currently active" else "Tap to make active",
+            title = stringResource(R.string.wear_svc_asr_use),
+            subtitle = if (selected) currentlyActive else tapToActivate,
             selected = selected,
             onSelect = onSelect,
         )
         navItem(
-            title = "Name",
-            subtitle = provider.name.ifBlank { "Not set" },
+            title = stringResource(R.string.wear_svc_name),
+            subtitle = provider.name.ifBlank { notSetLabel },
             icon = WearIcons.Settings,
             onClick = { editField = AsrField.NAME },
         )
         navItem(
-            title = "API key",
-            subtitle = if (provider.apiKeyOrNull().isBlank()) "Not set" else maskSecret(provider.apiKeyOrNull()),
+            title = stringResource(R.string.wear_svc_api_key),
+            subtitle = if (provider.apiKeyOrNull().isBlank()) notSetLabel else maskSecret(provider.apiKeyOrNull()),
             icon = WearIcons.Cpu,
             onClick = { editField = AsrField.API_KEY },
         )
         navItem(
-            title = provider.endpointLabel(),
-            subtitle = provider.endpointOrNull().ifBlank { "Not set" },
+            title = endpointLabel,
+            subtitle = provider.endpointOrNull().ifBlank { notSetLabel },
             icon = WearIcons.Web,
             onClick = { editField = AsrField.ENDPOINT },
         )
         textItem(
-            text = "Model and VAD options are edited on the phone app.",
+            text = stringResource(R.string.wear_svc_asr_phone_hint),
             maxLines = 2,
             small = true,
             muted = true,
         )
-        buttonItem(label = "Delete provider", icon = WearIcons.Delete, tonal = true) {
+        buttonItem(label = stringResource(R.string.wear_svc_delete_provider), icon = WearIcons.Delete, tonal = true) {
             confirmDelete = true
         }
     }
@@ -424,9 +472,9 @@ private fun AsrProviderDetail(
         WearInputDialog(
             visible = true,
             title = when (field) {
-                AsrField.NAME -> "Provider name"
-                AsrField.API_KEY -> "API key"
-                AsrField.ENDPOINT -> provider.endpointLabel()
+                AsrField.NAME -> stringResource(R.string.wear_svc_provider_name)
+                AsrField.API_KEY -> stringResource(R.string.wear_svc_api_key)
+                AsrField.ENDPOINT -> endpointLabel
             },
             initialValue = when (field) {
                 AsrField.NAME -> provider.name
@@ -449,9 +497,9 @@ private fun AsrProviderDetail(
 
     WearConfirmDialog(
         visible = confirmDelete,
-        title = "Delete provider?",
-        message = provider.name.ifBlank { "This provider" } + " will be removed.",
-        confirmLabel = "Delete",
+        title = stringResource(R.string.wear_svc_delete_provider_title),
+        message = deleteProviderMessage(provider.name),
+        confirmLabel = stringResource(R.string.wear_common_delete),
         danger = true,
         onConfirm = {
             confirmDelete = false
@@ -461,26 +509,35 @@ private fun AsrProviderDetail(
     )
 }
 
+@Composable
+private fun deleteProviderMessage(name: String): String {
+    val thisProvider = stringResource(R.string.wear_svc_this_provider)
+    return stringResource(R.string.wear_svc_speech_delete_message, name.ifBlank { thisProvider })
+}
+
+@Composable
 private fun numberedTitles(names: List<String>): List<String> {
+    val unnamed = stringResource(R.string.wear_svc_unnamed_provider)
     val seen = mutableMapOf<String, Int>()
     return names.map { name ->
-        val label = name.ifBlank { "Unnamed provider" }
+        val label = name.ifBlank { unnamed }
         val count = (seen[label] ?: 0) + 1
         seen[label] = count
         if (count == 1) label else "$label #$count"
     }
 }
 
+@Composable
 private fun maskSecret(value: String): String = when {
-    value.isBlank() -> "Not set"
+    value.isBlank() -> stringResource(R.string.wear_svc_not_set)
     value.length <= 4 -> "••••"
     else -> "••••${value.takeLast(4)}"
 }
 
-private fun TTSProviderSetting.typeLabel(): String = when (this) {
+private fun TTSProviderSetting.typeLabel(systemTts: String): String = when (this) {
     is TTSProviderSetting.OpenAI -> "OpenAI"
     is TTSProviderSetting.Gemini -> "Gemini"
-    is TTSProviderSetting.SystemTTS -> "System TTS"
+    is TTSProviderSetting.SystemTTS -> systemTts
     is TTSProviderSetting.MiniMax -> "MiniMax"
     is TTSProviderSetting.Qwen -> "Qwen"
     is TTSProviderSetting.Groq -> "Groq"
@@ -577,13 +634,14 @@ private fun ASRProviderSetting.apiKeyOrNull(): String = when (this) {
     is ASRProviderSetting.DeepSeek -> apiKey
 }
 
+@Composable
 private fun ASRProviderSetting.endpointLabel(): String = when (this) {
-    is ASRProviderSetting.OpenAIRealtime -> "WebSocket URL"
-    is ASRProviderSetting.DashScope -> "WebSocket URL"
-    is ASRProviderSetting.Volcengine -> "WebSocket URL"
-    is ASRProviderSetting.MiMo -> "Base URL"
-    is ASRProviderSetting.Step -> "Base URL"
-    is ASRProviderSetting.DeepSeek -> "Base URL"
+    is ASRProviderSetting.OpenAIRealtime -> stringResource(R.string.wear_svc_websocket_url)
+    is ASRProviderSetting.DashScope -> stringResource(R.string.wear_svc_websocket_url)
+    is ASRProviderSetting.Volcengine -> stringResource(R.string.wear_svc_websocket_url)
+    is ASRProviderSetting.MiMo -> stringResource(R.string.wear_svc_base_url)
+    is ASRProviderSetting.Step -> stringResource(R.string.wear_svc_base_url)
+    is ASRProviderSetting.DeepSeek -> stringResource(R.string.wear_svc_base_url)
 }
 
 private fun ASRProviderSetting.endpointOrNull(): String = when (this) {

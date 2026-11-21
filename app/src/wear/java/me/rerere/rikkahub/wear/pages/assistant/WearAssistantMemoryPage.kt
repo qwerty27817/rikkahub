@@ -16,6 +16,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -25,6 +26,7 @@ import androidx.wear.compose.material3.ListSubHeader
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.MemoryConsolidationStatus
 import me.rerere.rikkahub.data.model.MemoryFile
 import me.rerere.rikkahub.data.model.groupByDirectory
@@ -63,9 +65,13 @@ fun WearAssistantMemoryPage(
 
     var showIntervalDialog by remember { mutableStateOf(false) }
 
+    // WearScreen 的 content 是普通 DSL builder（非 @Composable），字符串要先在外部取好。
+    val memoryTitle = stringResource(R.string.wear_asst_memory)
+    val missingAssistant = stringResource(R.string.wear_asst_assistant_missing)
+
     if (assistant == null) {
-        WearScreen(title = "Memory", onBack = onBack) {
-            textItem("This assistant no longer exists.")
+        WearScreen(title = memoryTitle, onBack = onBack) {
+            textItem(missingAssistant)
         }
         return
     }
@@ -77,14 +83,41 @@ fun WearAssistantMemoryPage(
         assistantId.toString()
     }
 
-    WearScreen(title = "Memory", onBack = onBack) {
-        buttonItem(label = "New memory file", icon = WearIcons.Add, tonal = true) {
+    val newMemoryFileLabel = stringResource(R.string.wear_asst_new_memory_file)
+    val organizingLabel = stringResource(R.string.wear_asst_organizing)
+    val organizeNowLabel = stringResource(R.string.wear_asst_organize_now)
+    val settingsLabel = stringResource(R.string.wear_asst_settings)
+    val memoryDesc = stringResource(R.string.wear_asst_memory_desc)
+    val globalMemoryLabel = stringResource(R.string.wear_asst_global_memory)
+    val globalMemoryDesc = stringResource(R.string.wear_asst_global_memory_desc)
+    val autoOrganizeLabel = stringResource(R.string.wear_asst_auto_organize)
+    val autoOrganizeDesc = stringResource(R.string.wear_asst_auto_organize_desc)
+    val recentChatsLabel = stringResource(R.string.wear_asst_recent_chats_reference)
+    val recentChatsDesc = stringResource(R.string.wear_asst_recent_chats_reference_desc)
+    val timeReminderLabel = stringResource(R.string.wear_asst_time_reminder)
+    val timeReminderDesc = stringResource(R.string.wear_asst_time_reminder_desc)
+    val reminderIntervalLabel = stringResource(R.string.wear_asst_reminder_interval)
+    val minutesLabel = stringResource(R.string.wear_asst_minutes)
+    val minutesPlaceholder = stringResource(R.string.wear_asst_minutes_placeholder)
+    val filesLabel = stringResource(R.string.wear_asst_files)
+    val libraryLabel = stringResource(R.string.wear_asst_library)
+    val globalLabel = stringResource(R.string.wear_asst_global)
+    val perAssistantLabel = stringResource(R.string.wear_asst_per_assistant)
+    val memoryEmptyLabel = stringResource(R.string.wear_asst_memory_empty)
+    val consolidationLabel = consolidationText(consolidation)
+    val intervalLabel = stringResource(
+        R.string.wear_asst_minutes_value,
+        assistant.timeReminderIntervalMinutes,
+    )
+
+    WearScreen(title = memoryTitle, onBack = onBack) {
+        buttonItem(label = newMemoryFileLabel, icon = WearIcons.Add, tonal = true) {
             onOpenFile(memoryId, null)
         }
         if (assistant.enableMemory) {
-            textItem(consolidationText(consolidation), small = true, muted = true)
+            textItem(consolidationLabel, small = true, muted = true)
             buttonItem(
-                label = if (consolidation.running) "Organizing…" else "Organize now",
+                label = if (consolidation.running) organizingLabel else organizeNowLabel,
                 icon = WearIcons.Retry,
                 tonal = true,
                 enabled = !consolidation.running,
@@ -92,18 +125,18 @@ fun WearAssistantMemoryPage(
             )
         }
 
-        section("Settings")
+        section(settingsLabel)
         toggleItem(
-            title = "Memory",
-            subtitle = "Let the assistant remember things between chats",
+            title = memoryTitle,
+            subtitle = memoryDesc,
             checked = assistant.enableMemory,
             onCheckedChange = { checked ->
                 scope.launch { vm.update(assistant.copy(enableMemory = checked)) }
             },
         )
         toggleItem(
-            title = "Global memory",
-            subtitle = "Share one memory library across assistants",
+            title = globalMemoryLabel,
+            subtitle = globalMemoryDesc,
             checked = assistant.useGlobalMemory,
             enabled = assistant.enableMemory,
             onCheckedChange = { checked ->
@@ -111,8 +144,8 @@ fun WearAssistantMemoryPage(
             },
         )
         toggleItem(
-            title = "Auto organize",
-            subtitle = "Tidy up memory after a conversation ends",
+            title = autoOrganizeLabel,
+            subtitle = autoOrganizeDesc,
             checked = assistant.autoConsolidateMemory,
             enabled = assistant.enableMemory,
             onCheckedChange = { checked ->
@@ -120,16 +153,16 @@ fun WearAssistantMemoryPage(
             },
         )
         toggleItem(
-            title = "Recent chats reference",
-            subtitle = "Let the assistant read recent conversations",
+            title = recentChatsLabel,
+            subtitle = recentChatsDesc,
             checked = assistant.enableRecentChatsReference,
             onCheckedChange = { checked ->
                 scope.launch { vm.update(assistant.copy(enableRecentChatsReference = checked)) }
             },
         )
         toggleItem(
-            title = "Time reminder",
-            subtitle = "Inject the current time every so often",
+            title = timeReminderLabel,
+            subtitle = timeReminderDesc,
             checked = assistant.enableTimeReminder,
             onCheckedChange = { checked ->
                 scope.launch { vm.update(assistant.copy(enableTimeReminder = checked)) }
@@ -137,19 +170,17 @@ fun WearAssistantMemoryPage(
         )
         if (assistant.enableTimeReminder) {
             navItem(
-                title = "Reminder interval",
-                subtitle = "${assistant.timeReminderIntervalMinutes} minutes",
+                title = reminderIntervalLabel,
+                subtitle = intervalLabel,
                 icon = WearIcons.History,
                 onClick = { showIntervalDialog = true },
             )
         }
 
-        section("Files")
-        infoItem("Library", if (assistant.useGlobalMemory) "Global" else "Per assistant")
+        section(filesLabel)
+        infoItem(libraryLabel, if (assistant.useGlobalMemory) globalLabel else perAssistantLabel)
         if (memories.isEmpty()) {
-            textItem(
-                "No memory files yet. The assistant writes them during chats, or create one manually.",
-            )
+            textItem(memoryEmptyLabel)
         } else {
             memories.groupByDirectory().forEach { (directory, files) ->
                 memoryDirectoryHeader(directory)
@@ -168,10 +199,11 @@ fun WearAssistantMemoryPage(
     if (showIntervalDialog) {
         WearInputDialog(
             visible = true,
-            title = "Reminder interval",
+            title = reminderIntervalLabel,
             initialValue = assistant.timeReminderIntervalMinutes.toString(),
-            label = "Minutes",
-            placeholder = "60",
+            label = minutesLabel,
+            placeholder = minutesPlaceholder,
+            confirmLabel = stringResource(R.string.wear_common_ok),
             singleLine = true,
             keyboardType = KeyboardType.Number,
             onConfirm = { value ->
@@ -194,25 +226,34 @@ private fun WearListScope.memoryDirectoryHeader(directory: String) {
 }
 
 /** 目录标题沿用手机记忆页的约定：根目录是用户本人，格式约定的目录有固定译名。 */
+@Composable
 private fun memorySectionTitle(directory: String): String = when (directory) {
-    "/" -> "You"
-    "/topics" -> "Topics"
-    "/areas" -> "Areas"
-    "/people" -> "People"
+    "/" -> stringResource(R.string.wear_asst_memory_you)
+    "/topics" -> stringResource(R.string.wear_asst_memory_topics)
+    "/areas" -> stringResource(R.string.wear_asst_memory_areas)
+    "/people" -> stringResource(R.string.wear_asst_memory_people)
     else -> memoryTitleOf(directory.removePrefix("/"))
 }
 
+@Composable
 private fun consolidationText(status: MemoryConsolidationStatus): String {
     val lastRun = status.lastRun
+    val error = lastRun?.error
     return when {
-        status.running -> "Organizing memory…"
-        lastRun?.error != null -> "Last organize failed: ${lastRun.error}"
+        status.running -> stringResource(R.string.wear_asst_organizing_memory)
+        error != null -> stringResource(R.string.wear_asst_last_organize_failed, error)
         lastRun != null && lastRun.hasChanges ->
-            "Last organize: ${lastRun.changedPaths.size} updated, ${lastRun.deletedPaths.size} removed"
+            stringResource(
+                R.string.wear_asst_last_organize_changes,
+                lastRun.changedPaths.size,
+                lastRun.deletedPaths.size,
+            )
 
-        lastRun != null -> "Last organize: no changes"
-        status.pendingTurns > 0 -> "${status.pendingTurns} turns waiting to be organized"
-        else -> "No memory organized yet"
+        lastRun != null -> stringResource(R.string.wear_asst_last_organize_no_changes)
+        status.pendingTurns > 0 ->
+            stringResource(R.string.wear_asst_pending_turns, status.pendingTurns)
+
+        else -> stringResource(R.string.wear_asst_no_memory_organized)
     }
 }
 

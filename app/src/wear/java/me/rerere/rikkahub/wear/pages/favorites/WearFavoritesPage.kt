@@ -14,6 +14,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -21,6 +22,7 @@ import androidx.wear.compose.material3.Card
 import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.Text
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.pages.favorite.FavoriteVM
 import me.rerere.rikkahub.ui.pages.favorite.NodeFavoriteListItem
 import me.rerere.rikkahub.utils.toLocalDateTime
@@ -43,17 +45,23 @@ fun WearFavoritesPage(
     val scope = rememberCoroutineScope()
     var pendingDelete by remember { mutableStateOf<NodeFavoriteListItem?>(null) }
 
-    WearScreen(title = "Favorites", onBack = onBack) {
-        infoItem("Saved messages", favorites.size.toString())
+    // WearScreen 的 content 是普通 DSL builder（非 @Composable），先算好所有字符串。
+    val title = stringResource(R.string.wear_set_favorites)
+    val savedMessages = stringResource(R.string.wear_set_saved_messages)
+    val noFavorites = stringResource(R.string.wear_set_no_favorites)
+    val favoritesHint = stringResource(R.string.wear_set_favorites_hint)
+
+    WearScreen(title = title, onBack = onBack) {
+        infoItem(savedMessages, favorites.size.toString())
         if (favorites.isEmpty()) {
-            textItem("No favorites yet.")
+            textItem(noFavorites)
             textItem(
-                "Favorite a message from the phone app to find it here.",
+                favoritesHint,
                 small = true,
                 muted = true,
             )
         } else {
-            section("Saved messages")
+            section(savedMessages)
             favorites.forEach { favorite ->
                 item(key = "favorite:${favorite.id}") {
                     FavoriteRow(
@@ -69,9 +77,10 @@ fun WearFavoritesPage(
     pendingDelete?.let { favorite ->
         WearConfirmDialog(
             visible = true,
-            title = "Delete favorite?",
-            message = "The message itself stays in the conversation.",
-            confirmLabel = "Delete",
+            title = stringResource(R.string.wear_set_delete_favorite_title),
+            message = stringResource(R.string.wear_set_delete_favorite_message),
+            confirmLabel = stringResource(R.string.wear_common_delete),
+            dismissLabel = stringResource(R.string.wear_common_cancel),
             danger = true,
             onConfirm = {
                 pendingDelete = null
@@ -98,7 +107,7 @@ private fun FavoriteRow(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    text = item.conversationTitle.ifBlank { "Untitled conversation" },
+                    text = item.conversationTitle.ifBlank { stringResource(R.string.wear_set_untitled_conversation) },
                     style = MaterialTheme.typography.bodyLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -122,7 +131,7 @@ private fun FavoriteRow(
             IconButton(onClick = onDelete) {
                 Icon(
                     imageVector = WearIcons.Delete,
-                    contentDescription = "Delete favorite",
+                    contentDescription = stringResource(R.string.wear_set_delete_favorite_desc),
                     tint = MaterialTheme.colorScheme.error,
                 )
             }

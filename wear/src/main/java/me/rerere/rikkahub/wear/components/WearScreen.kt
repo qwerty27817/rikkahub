@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumnDefaults
@@ -28,6 +29,7 @@ import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ChevronLeft
+import me.rerere.rikkahub.wear.R
 import me.rerere.rikkahub.wear.shape.LocalScreenShapeState
 
 /**
@@ -41,7 +43,7 @@ fun WearScreen(
     onBack: (() -> Unit)? = null,
     state: WearListState = rememberWearListState(),
     actions: (@Composable () -> Unit)? = null,
-    content: WearListScope.() -> Unit,
+    content: @Composable WearListScope.() -> Unit,
 ) {
     val shapeState = LocalScreenShapeState.current
     if (shapeState.isRound) {
@@ -97,7 +99,7 @@ private fun SquareTopBar(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = HugeIcons.ChevronLeft,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.wear_back),
                     tint = MaterialTheme.colorScheme.onSurface,
                 )
             }
@@ -142,7 +144,7 @@ internal fun WearListScope.backItem(onBack: () -> Unit) {
             ) {
                 Icon(
                     imageVector = HugeIcons.ChevronLeft,
-                    contentDescription = "Back",
+                    contentDescription = stringResource(R.string.wear_back),
                     modifier = Modifier.size(20.dp),
                 )
             }

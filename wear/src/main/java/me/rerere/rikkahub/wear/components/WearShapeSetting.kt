@@ -14,25 +14,30 @@ fun WearListScope.shapeModeSetting(
     controller: ScreenShapeController,
     state: ScreenShapeState,
     title: String = "Screen shape",
+    autoLabel: String = "Auto",
+    autoDetectedFormat: String = "Detected: %1\$s · %2\$s",
+    forceSquareLabel: String = "Force square",
+    forceRoundLabel: String = "Force round",
+    displayLabel: String = "Display",
 ) {
     section(title)
     radioItem(
-        title = "Auto",
-        subtitle = "Detected: ${state.shape.name.lowercase()} · ${state.source.name.lowercase()}",
+        title = autoLabel,
+        subtitle = autoDetectedFormat.format(state.shape.name.lowercase(), state.source.name.lowercase()),
         selected = state.mode == ScreenShapeMode.AUTO,
         onSelect = { controller.setMode(ScreenShapeMode.AUTO) },
     )
     radioItem(
-        title = "Force square",
+        title = forceSquareLabel,
         selected = state.mode == ScreenShapeMode.SQUARE,
         onSelect = { controller.setMode(ScreenShapeMode.SQUARE) },
     )
     radioItem(
-        title = "Force round",
+        title = forceRoundLabel,
         selected = state.mode == ScreenShapeMode.ROUND,
         onSelect = { controller.setMode(ScreenShapeMode.ROUND) },
     )
-    infoItem("Display", state.diagnosis)
+    infoItem(displayLabel, state.diagnosis)
 }
 
 /** 单独使用的形态设置（没有现成 WearList 上下文的页面）。 */

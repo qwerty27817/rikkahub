@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.wear.pages
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.wear.components.WearScreen
 import me.rerere.rikkahub.wear.components.infoItem
 import me.rerere.rikkahub.wear.components.textItem
@@ -12,8 +14,11 @@ fun WearPlaceholderPage(
     description: String,
     onBack: () -> Unit,
 ) {
+    // WearScreen 的 content 是普通 DSL builder（非 @Composable），先算好所有字符串。
+    val statusLabel = stringResource(R.string.wear_misc_placeholder_status)
+    val notPorted = stringResource(R.string.wear_misc_placeholder_not_ported)
     WearScreen(title = title, onBack = onBack) {
         textItem(description)
-        infoItem("Status", "Not ported yet")
+        infoItem(statusLabel, notPorted)
     }
 }

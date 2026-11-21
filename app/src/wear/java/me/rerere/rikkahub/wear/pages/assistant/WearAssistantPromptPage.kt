@@ -6,7 +6,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.assistant.detail.AssistantDetailVM
@@ -41,9 +43,29 @@ fun WearAssistantPromptPage(
     val assistant = settings.assistants.find { it.id == assistantId }
     var editTemplate by remember { mutableStateOf(false) }
 
+    // WearScreen 的 content 是普通 DSL builder（非 @Composable），字符串要先在外部取好。
+    val systemPromptLabel = stringResource(R.string.wear_asst_system_prompt)
+    val missingAssistant = stringResource(R.string.wear_asst_assistant_missing)
+    val promptPlaceholder = stringResource(R.string.wear_asst_system_prompt_placeholder)
+    val savePromptLabel = stringResource(R.string.wear_asst_save_prompt)
+    val systemPromptSavedMessage = stringResource(R.string.wear_asst_system_prompt_saved)
+    val discardChangesLabel = stringResource(R.string.wear_asst_discard_changes)
+    val charactersLabel = stringResource(R.string.wear_asst_characters)
+    val behaviorLabel = stringResource(R.string.wear_asst_behavior)
+    val perConversationPromptLabel = stringResource(R.string.wear_asst_per_conversation_prompt)
+    val perConversationPromptDesc =
+        stringResource(R.string.wear_asst_per_conversation_prompt_desc)
+    val streamOutputLabel = stringResource(R.string.wear_asst_stream_output)
+    val streamOutputDesc = stringResource(R.string.wear_asst_stream_output_desc)
+    val messageTemplateLabel = stringResource(R.string.wear_asst_message_template)
+    val templateLabel = stringResource(R.string.wear_asst_template)
+    val templateVariables = stringResource(R.string.wear_asst_template_variables)
+    val templateMissingMessage = stringResource(R.string.wear_asst_template_missing_message)
+    val templateSavedMessage = stringResource(R.string.wear_asst_template_saved)
+
     if (assistant == null) {
-        WearScreen(title = "System prompt", onBack = onBack) {
-            textItem("This assistant no longer exists.")
+        WearScreen(title = systemPromptLabel, onBack = onBack) {
+            textItem(missingAssistant)
         }
         return
     }
@@ -52,69 +74,69 @@ fun WearAssistantPromptPage(
     var draft by remember(assistant.systemPrompt) { mutableStateOf(assistant.systemPrompt) }
     val dirty = draft != assistant.systemPrompt
 
-    WearScreen(title = "System prompt", onBack = onBack) {
+    WearScreen(title = systemPromptLabel, onBack = onBack) {
         item(key = "system-prompt-editor") {
             WearTextField(
                 value = draft,
                 onValueChange = { draft = it },
-                label = "System prompt",
-                placeholder = "You are a helpful assistant.",
+                label = systemPromptLabel,
+                placeholder = promptPlaceholder,
                 singleLine = false,
                 minLines = 6,
             )
         }
         buttonItem(
-            label = "Save prompt",
+            label = savePromptLabel,
             icon = WearIcons.Check,
             enabled = dirty,
             onClick = {
                 val value = draft
                 scope.launch {
                     vm.update(assistant.copy(systemPrompt = value))
-                    toaster.show("System prompt saved", ToastType.Success)
+                    toaster.show(systemPromptSavedMessage, ToastType.Success)
                 }
             },
         )
         if (dirty) {
-            buttonItem(label = "Discard changes", tonal = true) {
+            buttonItem(label = discardChangesLabel, tonal = true) {
                 draft = assistant.systemPrompt
             }
         }
-        infoItem("Characters", draft.length.toString())
+        infoItem(charactersLabel, draft.length.toString())
 
-        section("Behavior")
+        section(behaviorLabel)
         toggleItem(
-            title = "Per-conversation prompt",
-            subtitle = "Let a conversation override the system prompt",
+            title = perConversationPromptLabel,
+            subtitle = perConversationPromptDesc,
             checked = assistant.allowConversationSystemPrompt,
             onCheckedChange = { checked ->
                 scope.launch { vm.update(assistant.copy(allowConversationSystemPrompt = checked)) }
             },
         )
         toggleItem(
-            title = "Stream output",
-            subtitle = "Show the reply while it is generated",
+            title = streamOutputLabel,
+            subtitle = streamOutputDesc,
             checked = assistant.streamOutput,
             onCheckedChange = { checked ->
                 scope.launch { vm.update(assistant.copy(streamOutput = checked)) }
             },
         )
 
-        section("Message template")
+        section(messageTemplateLabel)
         navItem(
-            title = "Template",
+            title = templateLabel,
             subtitle = assistant.messageTemplate.replace('\n', ' ').take(60),
             icon = WearIcons.Settings,
             onClick = { editTemplate = true },
         )
         textItem(
-            "Variables: {{ role }}, {{ message }}, {{ time }}, {{ date }}.",
+            templateVariables,
             small = true,
             muted = true,
         )
         if ("{{ message }}" !in assistant.messageTemplate) {
             textItem(
-                "The template must contain {{ message }}.",
+                templateMissingMessage,
                 small = true,
             )
         }
@@ -123,16 +145,17 @@ fun WearAssistantPromptPage(
     if (editTemplate) {
         WearInputDialog(
             visible = true,
-            title = "Message template",
+            title = messageTemplateLabel,
             initialValue = assistant.messageTemplate,
-            label = "Template",
+            label = templateLabel,
+            confirmLabel = stringResource(R.string.wear_common_ok),
             singleLine = false,
             onConfirm = { value ->
                 editTemplate = false
                 if (value.isNotBlank()) {
                     scope.launch {
                         vm.update(assistant.copy(messageTemplate = value))
-                        toaster.show("Template saved", ToastType.Success)
+                        toaster.show(templateSavedMessage, ToastType.Success)
                     }
                 }
             },
