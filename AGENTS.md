@@ -23,6 +23,7 @@ Material 3 look (cards with dividers, plain forms).
 ```bash
 ./gradlew assembleGithubDebug    # 构建 GitHub 渠道的 Debug APK
 ./gradlew assembleGithubRelease  # 构建 GitHub Release / 每日构建用的 APK
+./gradlew assembleGithubWearRelease  # 构建手表 APK（armeabi-v7a + arm64-v8a split，另附 universal）
 ./gradlew bundlePlayRelease      # 构建上架 Google Play 的 AAB
 ./gradlew test                   # 运行所有模块的 JVM 单元测试
 ./gradlew lint                   # 运行 Android Lint
@@ -50,6 +51,8 @@ App 有一个 `distribution` 维度的 product flavor：`github`（默认）和 
   binary compatible with the `terminal-view` aar). `TerminalSession` runs over a `TerminalTransport`: local PRoot
   terminals use `LocalPtyTransport`, SSH workspaces use the app's `SshTerminalTransport`. Origin and local changes are
   listed in terminal/README.md.
+- **wear**: Wear Material 3 设计系统（主题映射、方/圆形态判定、`WearScreen`/`WearList` 及列表项/对话框组件）。
+  只有 `app` 的 `wear` product flavor 依赖它；手表页面代码在 `app/src/wear/java/...`，说明见 docs/wear-port.md。
 
 ## Concepts
 

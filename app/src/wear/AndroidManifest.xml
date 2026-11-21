@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools">
+
+  <!-- 手表端不依赖 Wear OS 系统服务，非 WearOS 的 Android 手表同样可以安装 -->
+  <uses-feature
+    android:name="android.hardware.type.watch"
+    android:required="false" />
+
+  <!-- Phone Use 已从手表端移除，不再申请使用情况访问权限 -->
+  <uses-permission
+    android:name="android.permission.PACKAGE_USAGE_STATS"
+    tools:node="remove" />
+
+  <application
+    android:resizeableActivity="false"
+    tools:ignore="UnusedAttribute">
+
+    <!-- 手机 UI 入口不进入手表包 -->
+    <activity
+      android:name=".RouteActivity"
+      tools:node="remove" />
+    <activity
+      android:name=".ui.activity.ShortcutHandlerActivity"
+      tools:node="remove" />
+    <activity
+      android:name=".ui.activity.SafeModeActivity"
+      tools:node="remove" />
+
+    <activity
+      android:name=".wear.WearRouteActivity"
+      android:configChanges="keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale"
+      android:exported="true"
+      android:launchMode="singleTop"
+      android:theme="@style/Theme.Rikkahub"
+      android:windowSoftInputMode="adjustResize">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
+  </application>
+
+</manifest>

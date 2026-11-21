@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:tools="http://schemas.android.com/tools">
+
+  <!-- Play 不允许用无障碍服务做自动化，Play 渠道直接移除 Phone Use 服务 -->
+  <application>
+    <service
+      android:name=".phoneuse.PhoneUseAccessibilityService"
+      tools:node="remove" />
+  </application>
+
+</manifest>

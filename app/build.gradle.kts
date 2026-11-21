@@ -30,11 +30,10 @@ android {
         versionName = "3.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64")
-        }
     }
+
+    // 手表调试时可以临时把 x86_64 加进 wear 变体（模拟器），release 只出 v7a + arm64
+    val wearEmulatorAbi = providers.gradleProperty("wearEmulatorAbi").orNull == "true"
 
     splits {
         abi {
@@ -43,7 +42,8 @@ android {
             val isBuildingBundle = gradle.startParameter.taskNames.any { it.lowercase().contains("bundle") }
             isEnable = !isBuildingBundle
             reset()
-            include("arm64-v8a", "x86_64")
+            // 具体每个变体出哪几个 ABI 由下方 product flavor 的 ndk.abiFilters 决定
+            include("armeabi-v7a", "arm64-v8a", "x86_64")
             isUniversalApk = true
         }
     }
@@ -90,7 +90,8 @@ android {
     }
     // 按分发渠道区分：github 是 GitHub Release / 每日构建的 APK，play 是上架 Google Play 的 AAB
     // 两个渠道共用同一个 applicationId，Play 版不能自更新，相关入口通过 BuildConfig.IS_PLAY_STORE 关闭
-    flavorDimensions += "distribution"
+    // target 维度区分手机端与手表端：wear 使用独立的 Wear M3 UI 与入口，手机端产物保持原样
+    flavorDimensions += listOf("distribution", "target")
     productFlavors {
         create("github") {
             dimension = "distribution"
@@ -100,6 +101,23 @@ android {
         create("play") {
             dimension = "distribution"
             buildConfigField("boolean", "IS_PLAY_STORE", "true")
+        }
+        create("phone") {
+            dimension = "target"
+            isDefault = true
+            ndk {
+                abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+            }
+        }
+        create("wear") {
+            dimension = "target"
+            ndk {
+                abiFilters += buildList {
+                    add("armeabi-v7a")
+                    add("arm64-v8a")
+                    if (wearEmulatorAbi) add("x86_64")
+                }
+            }
         }
     }
     compileOptions {
@@ -153,6 +171,12 @@ androidComponents {
     finalizeDsl { extension ->
         extension.buildTypes.findByName("nonMinifiedRelease")?.optimization?.enable = false
     }
+
+    // 手表 UI 依赖 Wear Compose 设计系统模块。多维度 flavor 下没有组合级 configuration，
+    // 所以按变体把 :wear 挂到 <variantName>Implementation，手机变体不会依赖它。
+    onVariants(selector().withFlavor("target", "wear")) { variant ->
+        dependencies.add("${variant.name}Implementation", project(":wear"))
+    }
 }
 
 composeCompiler {
@@ -164,6 +188,28 @@ composeCompiler {
 tasks.register("buildAll") {
     dependsOn("assembleGithubRelease", "bundlePlayRelease")
     description = "Build GitHub APK and Play AAB"
+}
+
+// 加了 target 维度后原任务名会变成 assembleGithubPhoneDebug 这种形式，
+// 这里给旧的手机任务名保留别名，CI / 文档里的命令不用改。
+mapOf(
+    "assembleGithubDebug" to "assembleGithubPhoneDebug",
+    "assembleGithubRelease" to "assembleGithubPhoneRelease",
+    "assemblePlayDebug" to "assemblePlayPhoneDebug",
+    "assemblePlayRelease" to "assemblePlayPhoneRelease",
+    "bundlePlayRelease" to "bundlePlayPhoneRelease",
+).forEach { (alias, target) ->
+    tasks.register(alias) {
+        group = "build"
+        description = "Alias for $target (phone flavor)"
+        dependsOn(target)
+    }
+}
+
+tasks.register("assembleWearRelease") {
+    group = "build"
+    description = "Build both wear APK splits (armeabi-v7a + arm64-v8a) and the universal APK"
+    dependsOn("assembleGithubWearRelease")
 }
 
 ksp {

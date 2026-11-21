@@ -85,20 +85,25 @@ jobs:
       - name: Build GitHub APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleGithubRelease
+          ./gradlew assembleGithubRelease assembleGithubWearRelease
 
       - name: Build Play AAB
         run: ./gradlew bundlePlayRelease
 
-      # 只发 arm64 APK，文件名带版本号；mapping 压缩成 zip，解压后用 retrace 还原崩溃堆栈
+      # 手机只发 arm64；手表同时发 armeabi-v7a 与 arm64-v8a（另附 universal，便于侧载）
+      # mapping 手机/手表分开保留，解压后用 retrace 还原崩溃堆栈
       - name: Prepare release assets
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           mkdir -p dist
           cp app/build/outputs/apk/github/release/*-arm64-v8a-release.apk "dist/rikkahub-${VERSION}-arm64-v8a.apk"
+          cp app/build/outputs/apk/githubWear/release/*-arm64-v8a-release.apk "dist/rikkahub-wear-${VERSION}-arm64-v8a.apk"
+          cp app/build/outputs/apk/githubWear/release/*-armeabi-v7a-release.apk "dist/rikkahub-wear-${VERSION}-armeabi-v7a.apk"
+          cp app/build/outputs/apk/githubWear/release/*-universal-release.apk "dist/rikkahub-wear-${VERSION}-universal.apk"
           cp app/build/outputs/mapping/githubRelease/mapping.txt "dist/mapping-${VERSION}.txt"
-          (cd dist && zip -j "mapping-${VERSION}.zip" "mapping-${VERSION}.txt" && rm "mapping-${VERSION}.txt")
+          cp app/build/outputs/mapping/githubWearRelease/mapping.txt "dist/mapping-wear-${VERSION}.txt"
+          (cd dist && zip -j "mapping-${VERSION}.zip" "mapping-${VERSION}.txt" "mapping-wear-${VERSION}.txt" && rm "mapping-${VERSION}.txt" "mapping-wear-${VERSION}.txt")
           ls -l dist
 
       # 建草稿 Release，填好更新日志后在 GitHub 上手动发布

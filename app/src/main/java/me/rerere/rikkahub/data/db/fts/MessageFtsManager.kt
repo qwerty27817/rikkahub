@@ -36,6 +36,20 @@ private const val TAG = "MessageFtsManager"
  * title、update_at 两列已不再写入，搜索时从 conversationentity 读取，保留只是为了已有索引不用重建。
  */
 internal fun createMessageFtsTables(db: SupportSQLiteDatabase) {
+    // 缺少 libsimple 的 ABI 上退回 SQLite 内置 unicode61 分词；两种分词器的索引互不兼容，
+    // 检测到历史索引的分词器与当前能力不一致时直接重建（搜索页有「重建索引」入口）。
+    val simpleAvailable = isSimpleExtensionAvailable(db)
+    val existingSql = db.query(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'"
+    ).use { if (it.moveToFirst()) it.getString(0) else null }
+    val existingUsesSimple = existingSql?.contains("'simple'", ignoreCase = true) == true
+    if (existingSql != null && existingUsesSimple != simpleAvailable) {
+        Log.w(TAG, "message_fts tokenizer changed (simple=$simpleAvailable), rebuilding index")
+        db.execSQL("DROP TABLE IF EXISTS message_fts")
+        db.execSQL("DROP TABLE IF EXISTS message_fts_rowid")
+    }
+    val tokenizer = if (simpleAvailable) "simple" else "unicode61"
+    Log.i(TAG, "message_fts tokenizer=$tokenizer (simple extension=$simpleAvailable)")
     db.execSQL(
         """
         CREATE VIRTUAL TABLE IF NOT EXISTS message_fts USING fts5(
@@ -45,7 +59,7 @@ internal fun createMessageFtsTables(db: SupportSQLiteDatabase) {
             conversation_id UNINDEXED,
             title UNINDEXED,
             update_at UNINDEXED,
-            tokenize = 'simple'
+            tokenize = '$tokenizer'
         )
         """.trimIndent()
     )
@@ -67,6 +81,10 @@ internal fun createMessageFtsTables(db: SupportSQLiteDatabase) {
 }
 
 private class IndexedMessage(val rowid: Long, val nodeId: String, val text: String)
+
+/** simple 扩展是否加载成功：查询一次扩展函数即可探测，失败说明当前连接没有该扩展。 */
+internal fun isSimpleExtensionAvailable(db: SupportSQLiteDatabase): Boolean =
+    runCatching { db.query("SELECT simple_query('test')").use { it.moveToFirst() } }.getOrDefault(false)
 
 class MessageFtsManager(private val database: AppDatabase) {
 
@@ -140,7 +158,15 @@ class MessageFtsManager(private val database: AppDatabase) {
     ): List<MessageSearchResult> = withContext(Dispatchers.IO) {
         val results = mutableListOf<MessageSearchResult>()
         if (assistantIds != null && assistantIds.isEmpty()) return@withContext results
-        val matchQuery = buildFtsMatchQuery(keyword, ::simpleQuery) ?: return@withContext results
+        val simpleAvailable = isSimpleExtensionAvailable(db)
+        val asciiQuery: (String) -> String = if (simpleAvailable) ::simpleQuery else ::builtinQuery
+        val matchQuery = buildFtsMatchQuery(keyword, asciiQuery) ?: return@withContext results
+        // simple 扩展缺失时用 SQLite 内置 snippet()，查询语法也换成普通前缀匹配
+        val snippetExpression = if (simpleAvailable) {
+            "simple_snippet(message_fts, 0, '[', ']', '...', 30)"
+        } else {
+            "snippet(message_fts, 0, '[', ']', '...', 30)"
+        }
         val assistantFilter = if (assistantIds != null) {
             "AND conversation.assistant_id IN (${assistantIds.joinToString { "?" }})"
         } else {
@@ -151,7 +177,7 @@ class MessageFtsManager(private val database: AppDatabase) {
             """
             SELECT message_fts.node_id, message_fts.message_id, message_fts.conversation_id,
                    conversation.title, conversation.update_at,
-                   simple_snippet(message_fts, 0, '[', ']', '...', 30) AS snippet
+                   $snippetExpression AS snippet
             FROM message_fts
             JOIN conversationentity AS conversation ON conversation.id = message_fts.conversation_id
             WHERE message_fts.text MATCH ?
@@ -185,6 +211,10 @@ class MessageFtsManager(private val database: AppDatabase) {
             "SELECT simple_query(?)",
             arrayOf(text)
         ).use { if (it.moveToFirst()) it.getString(0).orEmpty() else "" }
+
+    // 没有 simple 扩展时的兜底：普通 FTS5 前缀查询，中文按 unicode61 单字分词
+    private fun builtinQuery(text: String): String =
+        "\"" + text.replace("\"", "\"\"") + "\"*"
 }
 
 private val QUERY_RUN = Regex("[A-Za-z0-9]+|[^\\sA-Za-z0-9]+")

@@ -8,21 +8,8 @@
     tools:ignore="ScopedStorage" />
 
   <application>
-    <!-- Phone Use：只在 github 渠道声明，Play 不允许用无障碍服务做自动化。
-         Android 11 以下不启用，系统的无障碍设置里不会出现这一项 -->
-    <service
-      android:name=".phoneuse.PhoneUseAccessibilityService"
-      android:enabled="@bool/phone_use_supported"
-      android:exported="true"
-      android:label="@string/phone_use_accessibility_label"
-      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-      <intent-filter>
-        <action android:name="android.accessibilityservice.AccessibilityService" />
-      </intent-filter>
-      <meta-data
-        android:name="android.accessibilityservice"
-        android:resource="@xml/phone_use_accessibility" />
-    </service>
+    <!-- Phone Use 的无障碍服务声明在 app/src/phone/AndroidManifest.xml（仅手机变体），
+         Play 渠道在 app/src/play/AndroidManifest.xml 里移除，手表变体完全不包含。 -->
   </application>
 
 </manifest>

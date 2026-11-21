@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- 手表端用纯黑窗口背景，避免启动时白色闪烁（AMOLED 更省电） -->
+  <style name="Theme.Rikkahub" parent="android:Theme.Material.NoActionBar">
+    <item name="android:windowBackground">#FF000000</item>
+    <item name="android:windowLightStatusBar">false</item>
+    <item name="android:windowLightNavigationBar">false</item>
+  </style>
+</resources>

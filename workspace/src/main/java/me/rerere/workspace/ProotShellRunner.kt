@@ -76,7 +76,40 @@ class ProotShellRunner(
                 environment()["PROOT_LOADER"] = File(nativeLibraryDir, PROOT_LOADER).absolutePath
                 environment()["PROOT_TMP_DIR"] = context.tempDir.absolutePath
                 environment()["TMPDIR"] = context.tempDir.absolutePath
+                runtimeLibraryEnv(context.filesDir).forEach { (key, value) ->
+                    environment()[key] = value
+                }
             }
+    }
+
+    /**
+     * armeabi-v7a 上用的是 Termux 官方 arm 版 PRoot，它动态依赖 libtalloc.so.2 与
+     * libandroid-shmem.so。Android 的包管理器只把 lib*.so 放进 nativeLibraryDir，
+     * 所以在 filesDir 里补出带 soname 的副本，并同时用 LD_PRELOAD 让 soname 直接命中。
+     * arm64 上的 PRoot 是自包含的，这两个库不存在，这段逻辑自然不生效。
+     */
+    private fun runtimeLibraryEnv(filesDir: File): Map<String, String> {
+        val candidates = listOf(
+            "libtalloc.so" to "libtalloc.so.2",
+            "libandroid_shmem.so" to "libandroid-shmem.so",
+        )
+        val present = candidates.mapNotNull { (sourceName, soname) ->
+            val source = File(nativeLibraryDir, sourceName)
+            if (source.isFile) source to soname else null
+        }
+        if (present.isEmpty()) return emptyMap()
+
+        val libsDir = File(filesDir, ".proot-libs").apply { mkdirs() }
+        present.forEach { (source, soname) ->
+            val target = File(libsDir, soname)
+            if (!target.isFile || target.length() != source.length()) {
+                runCatching { source.copyTo(target, overwrite = true) }
+            }
+        }
+        return mapOf(
+            "LD_LIBRARY_PATH" to libsDir.absolutePath,
+            "LD_PRELOAD" to present.joinToString(":") { (source, _) -> source.absolutePath },
+        )
     }
 
     override fun terminalLaunch(context: WorkspaceTerminalContext): WorkspaceTerminalLaunch {
@@ -94,6 +127,9 @@ class ProotShellRunner(
             "PROOT_TMP_DIR=${context.tempDir.absolutePath}",
             "TMPDIR=${context.tempDir.absolutePath}",
         )
+        runtimeLibraryEnv(context.filesDir).forEach { (key, value) ->
+            env += "$key=$value"
+        }
         if (context.shellCompatibilityMode) {
             env += "PROOT_NO_SECCOMP=1"
         }

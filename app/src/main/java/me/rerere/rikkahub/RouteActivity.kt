@@ -149,14 +149,23 @@ import kotlin.uuid.Uuid
 private const val TAG = "RouteActivity"
 private const val ACTION_TRANSLATE = "me.rerere.rikkahub.action.TRANSLATE"
 private const val ACTION_MEDIA_CREATION = "me.rerere.rikkahub.action.MEDIA_CREATION"
-private const val EXTRA_CONVERSATION_ID = "conversationId"
+internal const val EXTRA_CONVERSATION_ID = "conversationId"
 
-/** 打开指定会话的聊天页 */
-fun conversationIntent(context: Context, conversationId: String): Intent =
-    Intent(context, RouteActivity::class.java).apply {
+/**
+ * 打开指定会话的聊天页。
+ *
+ * 手机与手表共用这个入口：直接解析当前安装包的 launcher Activity，
+ * 这样手表变体里不会因为 Intent(context, RouteActivity::class.java) 把手机 RouteActivity 拉进 APK。
+ */
+fun conversationIntent(context: Context, conversationId: String): Intent {
+    val launcher = context.packageManager.getLaunchIntentForPackage(context.packageName)?.component
+    return Intent().apply {
+        component = launcher ?: android.content.ComponentName(context.packageName, "me.rerere.rikkahub.RouteActivity")
+        action = Intent.ACTION_MAIN
         flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         putExtra(EXTRA_CONVERSATION_ID, conversationId)
     }
+}
 
 class RouteActivity : ComponentActivity() {
     private val okHttpClient by inject<OkHttpClient>()

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="wear_automation_description">Debug-only bridge for automated watch UI tests. It is not included in release builds.</string>
+</resources>

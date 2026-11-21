@@ -27,6 +27,8 @@ android {
 
         // 两个渠道共用一份 profile（:app 里 mergeIntoMain），只对 github 渠道生成，不用在设备上跑两遍
         missingDimensionStrategy("distribution", "github")
+        // Baseline Profile 只针对手机端生成，手表端复用同一份 profile
+        missingDimensionStrategy("target", "phone")
     }
 
     targetProjectPath = ":app"

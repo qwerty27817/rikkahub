@@ -93,7 +93,7 @@ jobs:
       - name: Gradle Build
         run: |
           chmod +x gradlew
-          ./gradlew assembleGithubRelease
+          ./gradlew assembleGithubRelease assembleGithubWearRelease
 
       # 把 APK 直接发布为 Prerelease，用户点链接即可下载单个 apk，无需登录、无需解压
       - name: Publish nightly prerelease
@@ -110,4 +110,7 @@ jobs:
           # mapping.txt 用于还原混淆后的崩溃堆栈，所有 ABI 的 APK 共用这一份
           files: |
             app/build/outputs/apk/github/release/*.apk
+            app/build/outputs/apk/githubWear/release/*-arm64-v8a-release.apk
+            app/build/outputs/apk/githubWear/release/*-armeabi-v7a-release.apk
+            app/build/outputs/apk/githubWear/release/*-universal-release.apk
             app/build/outputs/mapping/githubRelease/mapping.txt
